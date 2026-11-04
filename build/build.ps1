@@ -394,7 +394,7 @@ try {
     try {
         $props = $wb.BuiltinDocumentProperties
         foreach ($kv in @(@('Title', 'Digit'),
-                          @('Comments', 'One-click number format presets. Ribbon tab: Digit.'))) {
+                          @('Comments', 'One-click number format presets. Home tab > Digit group.'))) {
             $prop = [System.__ComObject].InvokeMember('Item', [System.Reflection.BindingFlags]::GetProperty, $null, $props, @($kv[0]))
             [void][System.__ComObject].InvokeMember('Value', [System.Reflection.BindingFlags]::SetProperty, $null, $prop, @($kv[1]))
         }
@@ -449,7 +449,7 @@ try {
         Release-Com $addin; Release-Com $tmpBook
         $excel.Quit()
         Release-Com $excel; $excel = $null
-        Write-Host "Installed $dest. Start Excel and look for the Digit tab." -ForegroundColor Green
+        Write-Host "Installed $dest. Start Excel and look for the Digit group on the Home tab." -ForegroundColor Green
     }
 }
 finally {
