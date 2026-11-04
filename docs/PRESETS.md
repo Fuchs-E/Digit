@@ -21,7 +21,7 @@ Each time Digit saves the file, it keeps the previous version as `presets.json.b
       "icon": "CommaStyle",
       "presets": [
         { "numberFormat": "#,##0;(#,##0);-",       "fontColor": "",        "fillColor": "" },
-        { "numberFormat": "#,##0.00;(#,##0.00);-", "fontColor": "#0000FF", "fillColor": "#FFF2CC" }
+        { "numberFormat": "#,##0.00;(#,##0.00);-", "fontColor": "#0000FF", "fillColor": "#FFF2CC", "bold": true }
       ]
     }
   ]
@@ -41,6 +41,7 @@ Each time Digit saves the file, it keeps the previous version as `presets.json.b
 | `groups[].presets` | 1 to 3 objects | The cycle order. |
 | `presets[].numberFormat` | string | **Required.** An Excel number format code, written in the English (US) syntax that VBA's `Range.NumberFormat` uses, for example `#,##0,;(#,##0,);-` or `0.0%`. The file then works the same in every Windows locale. |
 | `presets[].fontColor` | string | `"#RRGGBB"`, or `""` to leave the font colour as it is. |
+| `presets[].bold`, `presets[].italic`, `presets[].underline` | bool | Optional. `true` turns the style on, `false` turns it off. Leave the field out to leave the cell's style as it is. Like colours, these also tell apart presets that share a number format. |
 | `presets[].fillColor` | string | `"#RRGGBB"`, or `""` to leave the fill as it is. |
 
 Digit repairs the file when it loads it rather than refusing it:

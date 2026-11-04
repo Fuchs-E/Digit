@@ -51,12 +51,17 @@ End Function
 ' correctly even when they share a number format. Blank colours are wildcards
 ' because a blank colour means "leave as is".
 '
+' Bold, italic and underline work the same way (when useColours is True):
+' curStyle is the cell's state ("1" on, "0" off, "?" mixed) for bold, italic,
+' underline, and each preset style uses "1" / "0", or "-" for leave as is.
+'
 ' Returns 0 when nothing matches.
 Public Function Core_BestMatch(ByVal curFormat As String, ByVal curFont As String, ByVal curFill As String, _
                                presetFormats As Variant, presetCanon As Variant, _
                                presetFonts As Variant, presetFills As Variant, _
-                               ByVal useColours As Boolean) As Long
-    Dim i As Long, score As Long, bestScore As Long, best As Long
+                               ByVal useColours As Boolean, _
+                               Optional ByVal curStyle As String = "", Optional presetStyles As Variant) As Long
+    Dim i As Long, score As Long, bestScore As Long, best As Long, k As Long, want As String
 
     For i = LBound(presetFormats) To UBound(presetFormats)
         If Core_FormatsEqual(curFormat, CStr(presetFormats(i))) Or _
@@ -76,6 +81,14 @@ Public Function Core_BestMatch(ByVal curFormat As String, ByVal curFont As Strin
                     Else
                         score = -1000
                     End If
+                End If
+                If Not IsMissing(presetStyles) Then
+                    For k = 1 To 3
+                        want = Mid$(CStr(presetStyles(i)) & "---", k, 1)
+                        If want = "0" Or want = "1" Then
+                            If Mid$(curStyle & "???", k, 1) = want Then score = score + 1 Else score = -1000
+                        End If
+                    Next k
                 End If
             End If
             If score > bestScore Then

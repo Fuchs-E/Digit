@@ -305,14 +305,50 @@ Public Function Store_NewGroup(ByVal groupName As String) As Scripting.Dictionar
     Set Store_NewGroup = g
 End Function
 
+' style: three characters for bold, italic, underline; "1" = on, "0" = off,
+' "-" = leave as is (the key is then left out of the preset and the file).
 Public Function Store_NewPreset(ByVal numberFormat As String, Optional ByVal fontColor As String = "", _
-                                Optional ByVal fillColor As String = "") As Scripting.Dictionary
-    Dim p As New Scripting.Dictionary
+                                Optional ByVal fillColor As String = "", _
+                                Optional ByVal style As String = "---") As Scripting.Dictionary
+    Dim p As New Scripting.Dictionary, k As Long
     p("numberFormat") = numberFormat
     p("fontColor") = Core_NormalizeHex(fontColor)
     p("fillColor") = Core_NormalizeHex(fillColor)
+    For k = 1 To 3
+        Select Case Mid$(style & "---", k, 1)
+            Case "1": p(Store_StyleKey(k)) = True
+            Case "0": p(Store_StyleKey(k)) = False
+        End Select
+    Next k
     Set Store_NewPreset = p
 End Function
+
+' "bold", "italic" or "underline" for k = 1..3.
+Public Function Store_StyleKey(ByVal k As Long) As String
+    Store_StyleKey = Choose(k, "bold", "italic", "underline")
+End Function
+
+' The preset's style as three characters ("1" on, "0" off, "-" leave as is).
+Public Function Store_PresetStyle(ByVal p As Scripting.Dictionary) As String
+    Dim k As Long, s As String
+    For k = 1 To 3
+        If p.Exists(Store_StyleKey(k)) Then
+            If p(Store_StyleKey(k)) Then s = s & "1" Else s = s & "0"
+        Else
+            s = s & "-"
+        End If
+    Next k
+    Store_PresetStyle = s
+End Function
+
+' Sets one style flag: True / False, or Null to leave it as is.
+Public Sub Store_SetPresetStyle(ByVal p As Scripting.Dictionary, ByVal key As String, ByVal v As Variant)
+    If IsNull(v) Or IsEmpty(v) Then
+        If p.Exists(key) Then p.Remove key
+    Else
+        p(key) = CBool(v)
+    End If
+End Sub
 
 ' A group name not used yet: "New group", "New group 2", ...
 Public Function Store_UniqueGroupName(ByVal cfg As Scripting.Dictionary, ByVal baseName As String) As String
@@ -428,7 +464,8 @@ Public Function Store_Normalize(ByVal src As Object) As Scripting.Dictionary
                         If TypeName(p) = "Dictionary" Then
                             fmt = DictString(p, "numberFormat", "")
                             If Len(fmt) > 0 And presets.Count < DIGIT_MAX_PRESETS Then
-                                presets.Add Store_NewPreset(fmt, DictString(p, "fontColor", ""), DictString(p, "fillColor", ""))
+                                presets.Add Store_NewPreset(fmt, DictString(p, "fontColor", ""), DictString(p, "fillColor", ""), _
+                                                            DictTri(p, "bold") & DictTri(p, "italic") & DictTri(p, "underline"))
                             End If
                         End If
                     Next p
@@ -549,6 +586,17 @@ Private Function DictString(ByVal d As Object, ByVal key As String, ByVal def As
     If IsObject(d(key)) Then Exit Function
     If IsNull(d(key)) Then Exit Function
     DictString = CStr(d(key))
+End Function
+
+' "1" / "0" for a true / false value, "-" when missing or not a boolean.
+Private Function DictTri(ByVal d As Object, ByVal key As String) As String
+    DictTri = "-"
+    If d Is Nothing Then Exit Function
+    If Not d.Exists(key) Then Exit Function
+    If IsObject(d(key)) Then Exit Function
+    If VarType(d(key)) = vbBoolean Then
+        If d(key) Then DictTri = "1" Else DictTri = "0"
+    End If
 End Function
 
 Private Function DictBool(ByVal d As Object, ByVal key As String, ByVal def As Boolean) As Boolean

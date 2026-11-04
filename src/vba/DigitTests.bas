@@ -43,6 +43,7 @@ Public Function RunAllTests(Optional ByVal tempFolder As String = "") As String
     Test_FormatUtilities
     Test_RangeCycleAndUndo
     Test_MultiAreaAndColours
+    Test_Styles
     Test_TableColumn
     Test_ProtectedSheet
     Test_PivotDataField
@@ -196,6 +197,9 @@ Private Sub Test_SettingsForm()
     Set f = New frmDigitSettings
     Check f.Controls("lstGroups").ListCount > 0, "settings lists the preset groups"
     Check Not f.Controls("fraIcons").Visible, "icon picker starts closed"
+    CheckEq f.Controls("mpTabs").Pages.Count, 2, "settings has two tabs"
+    Check f.Controls("chkBold").TripleState, "bold box has a leave-as-is state"
+    CheckEq Left$(f.Controls("lblSlot1").Caption, 1), "1", "shortcut rows are numbered"
     Unload f
 End Sub
 
@@ -418,6 +422,55 @@ Private Sub Test_MultiAreaAndColours()
     CheckEq ws.Range("C1").Font.Color, fontBefore, "undo restores original font colour"
     CheckEq FontTheme(ws.Range("C1")), themeBefore, "undo restores theme font colour"
 
+    wb.Close SaveChanges:=False
+End Sub
+
+' Bold / italic / underline: stored per preset, used to tell presets apart,
+' applied, and undone.
+Private Sub Test_Styles()
+    Dim wb As Workbook, ws As Worksheet, g As Scripting.Dictionary, msg As String, cfg As Scripting.Dictionary
+    Dim errMsg As String, p As Scripting.Dictionary
+
+    ' Store
+    Set p = Store_NewPreset("0.0", "", "", "10-")
+    CheckEq Store_PresetStyle(p), "10-", "style kept"
+    Check Not p.Exists("underline"), "leave-as-is style is not stored"
+    Store_SetPresetStyle p, "underline", True
+    Store_SetPresetStyle p, "bold", Null
+    CheckEq Store_PresetStyle(p), "-01", "style flags set and cleared"
+    Set cfg = Store_ParseConfig("{""groups"":[{""name"":""S"",""presets"":[{""numberFormat"":""0"",""bold"":true,""italic"":false,""underline"":""x""}]}]}", errMsg)
+    CheckEq Store_PresetStyle(cfg("groups")(1)("presets")(1)), "10-", "style read from the file (non-boolean ignored)"
+    Set cfg = Store_ParseConfig(Store_ToJson(cfg), errMsg)
+    CheckEq Store_PresetStyle(cfg("groups")(1)("presets")(1)), "10-", "style survives save"
+
+    ' Matching: same number format, told apart by style
+    CheckEq Core_BestMatch("0.0", "", "", Array("", "0.0", "0.0"), Array("", "0.0", "0.0"), Array("", "", ""), Array("", "", ""), _
+                           True, "100", Array("", "1--", "1-1")), 1, "bold cell matches the bold preset"
+    CheckEq Core_BestMatch("0.0", "", "", Array("", "0.0", "0.0"), Array("", "0.0", "0.0"), Array("", "", ""), Array("", "", ""), _
+                           True, "101", Array("", "1--", "1-1")), 2, "bold underlined cell matches the more specific preset"
+    CheckEq Core_BestMatch("0.0", "", "", Array("", "0.0"), Array("", "0.0"), Array("", ""), Array("", ""), _
+                           True, "000", Array("", "1--")), 0, "plain cell does not match a bold preset"
+
+    ' Apply and undo
+    Set wb = NewScratchBook()
+    Set ws = wb.Worksheets(1)
+    Undo_Clear
+    Set g = Store_NewGroup("Styles")
+    g("presets").Add Store_NewPreset("0.0", "", "", "1--")
+    g("presets").Add Store_NewPreset("0.0", "", "", "1-1")
+    ws.Range("A1:B2").Value = 1.5
+    ws.Range("A1:B2").Select
+    ws.Range("A1").Activate
+    CheckEq Fmt_ApplyGroup(g, msg), drOK, "style 1: " & msg
+    CheckEq ws.Range("B2").Font.Bold, True, "bold applied"
+    CheckEq ws.Range("B2").Font.Underline, xlUnderlineStyleNone, "underline left alone"
+    CheckEq Fmt_ApplyGroup(g, msg), drOK, "style 2: " & msg
+    CheckEq ws.Range("B2").Font.Underline, xlUnderlineStyleSingle, "underline applied by the second preset"
+    Undo_Last msg
+    CheckEq ws.Range("B2").Font.Underline, xlUnderlineStyleNone, "undo removes underline"
+    CheckEq ws.Range("B2").Font.Bold, True, "undo keeps the earlier bold"
+    Undo_Last msg
+    CheckEq ws.Range("B2").Font.Bold, False, "undo removes bold"
     wb.Close SaveChanges:=False
 End Sub
 

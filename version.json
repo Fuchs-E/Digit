@@ -1,4 +1,4 @@
 {
-  "version": "1.3.1",
-  "notes": "New in Settings: \"Large quick buttons\" switches the quick buttons and Undo Format between small and large on the Home tab. Also tidies a small overlap in the Settings window."
+  "version": "1.4.0",
+  "notes": "Presets can now set bold, italic and underline. Settings is reorganised into two tabs: Presets (groups in ribbon order, pictures, the preset editor) and Ribbon & shortcuts."
 }

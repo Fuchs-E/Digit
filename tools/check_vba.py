@@ -6,6 +6,7 @@ self-tests may never do (ribbon callbacks, for example), so check them here:
   1. A call to a procedure that is not defined (or is Private in another module).
   2. A declaration (Const, Dim, Declare, Type, Enum) after the first procedure.
   3. A local variable declared twice in one procedure, or with a parameter's name.
+  4. An assignment to a name that is declared nowhere (Option Explicit error).
 
 Names that VBA, Excel or MSForms provide are listed in BUILTINS. If the check
 flags a real built-in, add it there.
@@ -105,7 +106,7 @@ def main():
         if m: modules.add(m.group(1).lower())
     modules |= {'frmdigitsettings', 'scripting', 'msforms', 'vbide', 'office'}
     builder = open(os.path.join(ROOT, 'build', 'DigitFormBuilder.bas'), encoding='utf-8').read()
-    controls = {c.lower() for c in re.findall(r'"((?:lbl|lst|btn|cbo|txt|img|chk|fra)\w*?)"', builder)}
+    controls = {c.lower() for c in re.findall(r'"((?:lbl|lst|btn|cbo|txt|img|chk|fra|mp)\w*?)"', builder)}
     controls |= {c.lower() + str(i) for c in ('cboSlot', 'txtKey', 'lblSlot') for i in range(1, 6)}
     builtins = {b.lower() for b in BUILTINS}
 
@@ -124,6 +125,9 @@ def main():
                     name = m.group(1)
                     if name.lower() not in known and name.rstrip('$').lower() not in known:
                         problems.append(f'{rel}:{n}: "{name}" is not defined anywhere: {raw.strip()}')
+                ma = re.match(r'^\s*(?:Set\s+|Let\s+)?([A-Za-z_]\w*)\s*=', stmt)
+                if ma and ma.group(1).lower() not in known:
+                    problems.append(f'{rel}:{n}: "{ma.group(1)}" is assigned but never declared: {raw.strip()}')
                 m = re.match(r'^\s*(?:Call\s+)?([A-Za-z_]\w*)(\s+[^=(]|\s*$)', stmt)
                 if m and m.group(1).lower() not in known and not re.match(r'^\s*\w+\s*=', stmt):
                     problems.append(f'{rel}:{n}: "{m.group(1)}" is not defined anywhere: {raw.strip()}')

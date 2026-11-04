@@ -12,7 +12,8 @@ Attribute VB_Name = "DigitUndo"
 ' however large they are; mixed areas are split in half recursively until each
 ' part is uniform. That keeps whole-column selections cheap.
 '
-'   block = Array(address, numberFormat, fontMode, fontColor, fillMode, fillColor, themeColor, tint)
+'   block = Array(address, numberFormat, fontMode, fontColor, fillMode, fillColor, themeColor, tint,
+'                 bold, italic, underline)        ' the last three are Empty when not saved
 '     fontMode: 0 not saved, 1 automatic, 2 colour, 3 theme colour (themeColor + tint)
 '     fillMode: 0 not saved, 1 no fill,   2 colour
 '
@@ -28,6 +29,7 @@ Private Const MAX_BLOCKS As Long = 50000      ' beyond this, ask before applying
 
 Private mHistory As Collection                ' of Scripting.Dictionary, newest last
 Private mDepth As Long
+Private mIncStyle As Boolean                  ' current capture also saves bold / italic / underline
 
 '------------------------------------------------------------------------------
 ' History
@@ -93,9 +95,10 @@ End Sub
 ' Snapshot of tgt before a change. Returns Nothing when it would need more than
 ' MAX_BLOCKS blocks.
 Public Function Undo_CaptureRange(ByVal tgt As Range, ByVal includeFont As Boolean, ByVal includeFill As Boolean, _
-                                  ByVal label As String) As Scripting.Dictionary
+                                  ByVal label As String, Optional ByVal includeStyle As Boolean = False) As Scripting.Dictionary
     Dim entry As New Scripting.Dictionary, blocks As New Collection, area As Range
 
+    mIncStyle = includeStyle
     For Each area In tgt.Areas
         If Not SnapRange(area, includeFont, includeFill, blocks) Then Exit Function
     Next area
@@ -146,7 +149,8 @@ Private Function SnapRange(ByVal r As Range, ByVal incFont As Boolean, ByVal inc
     If rowsN = 1 And colsN = 1 Then
         ' A single cell can still read as mixed (rich text with several font
         ' colours); keep its number format and leave the font alone.
-        blocks.Add Array(r.Address(False, False), r.NumberFormat, 0, 0, FillMode(r, incFill), FillColor(r, incFill), 0, 0#)
+        blocks.Add Array(r.Address(False, False), r.NumberFormat, 0, 0, FillMode(r, incFill), FillColor(r, incFill), 0, 0#, _
+                         Empty, Empty, Empty)
         SnapRange = True
         Exit Function
     End If
@@ -167,7 +171,7 @@ End Function
 ' True when every cell in r shares the properties being saved; st receives the block.
 Private Function ReadUniform(ByVal r As Range, ByVal incFont As Boolean, ByVal incFill As Boolean, ByRef st As Variant) As Boolean
     Dim nf As Variant, fMode As Long, fColor As Variant, iMode As Long, iColor As Variant, v As Variant
-    Dim theme As Variant, tint As Variant
+    Dim theme As Variant, tint As Variant, b As Variant, it As Variant, u As Variant
 
     nf = r.NumberFormat
     If IsNull(nf) Then Exit Function
@@ -212,7 +216,13 @@ Private Function ReadUniform(ByVal r As Range, ByVal incFont As Boolean, ByVal i
         iColor = 0
     End If
 
-    st = Array(r.Address(False, False), CStr(nf), fMode, CLng(fColor), iMode, CLng(iColor), CLng(theme), CDbl(tint))
+    b = Empty: it = Empty: u = Empty
+    If mIncStyle Then
+        b = r.Font.Bold: it = r.Font.Italic: u = r.Font.Underline
+        If IsNull(b) Or IsNull(it) Or IsNull(u) Then Exit Function
+    End If
+
+    st = Array(r.Address(False, False), CStr(nf), fMode, CLng(fColor), iMode, CLng(iColor), CLng(theme), CDbl(tint), b, it, u)
     ReadUniform = True
 End Function
 
@@ -271,6 +281,11 @@ Public Function Undo_Restore(ByVal entry As Scripting.Dictionary, ByRef msg As S
                 Case 1: r.Interior.ColorIndex = xlColorIndexNone
                 Case 2: r.Interior.Color = b(5)
             End Select
+            If UBound(b) >= 10 Then
+                If Not IsEmpty(b(8)) Then r.Font.Bold = b(8)
+                If Not IsEmpty(b(9)) Then r.Font.Italic = b(9)
+                If Not IsEmpty(b(10)) Then r.Font.Underline = b(10)
+            End If
             If Err.Number <> 0 Then failed = failed + 1: lastErr = Err.Description
         Next b
         On Error GoTo Fail

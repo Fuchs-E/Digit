@@ -26,7 +26,7 @@ Public Function Fmt_ApplyGroup(ByVal grp As Scripting.Dictionary, ByRef msg As S
     Dim presets As Collection, p As Scripting.Dictionary
     Dim sel As Object, ac As Range, tgt As Range, src As Range
     Dim pt As PivotTable, fields As Collection, df As PivotField
-    Dim idx As Long, fontC As Long, fillC As Long, label As String
+    Dim idx As Long, fontC As Long, fillC As Long, label As String, style As String
     Dim entry As Scripting.Dictionary, prevScreen As Boolean, changed As Boolean
     Dim ws As Worksheet, stage As String
 
@@ -99,15 +99,16 @@ Public Function Fmt_ApplyGroup(ByVal grp As Scripting.Dictionary, ByRef msg As S
     stage = "reading the active cell's format"
     Set src = ac
     If ac.MergeCells Then Set src = ac.MergeArea.Cells(1, 1)
-    idx = NextPresetIndex(presets, CStr(src.NumberFormat), FontHex(src), FillHex(src), True)
+    idx = NextPresetIndex(presets, CStr(src.NumberFormat), FontHex(src), FillHex(src), True, CellStyle(src))
     Set p = presets(idx)
     label = grp("name") & " " & idx & "/" & presets.Count
     fontC = Core_HexToColor(p("fontColor"))
     fillC = Core_HexToColor(p("fillColor"))
+    style = Store_PresetStyle(p)
 
     If Not skipUndo Then
         stage = "saving an undo copy"
-        Set entry = Undo_CaptureRange(tgt, fontC >= 0, fillC >= 0, label)
+        Set entry = Undo_CaptureRange(tgt, fontC >= 0, fillC >= 0, label, style <> "---")
         If entry Is Nothing Then
             msg = "The selection is too large or too varied for Digit to save an undo copy."
             Fmt_ApplyGroup = drUndoTooBig
@@ -124,6 +125,11 @@ Public Function Fmt_ApplyGroup(ByVal grp As Scripting.Dictionary, ByRef msg As S
     If fontC >= 0 Then tgt.Font.Color = fontC
     stage = "setting the fill colour"
     If fillC >= 0 Then tgt.Interior.Color = fillC
+    stage = "setting bold, italic and underline"
+    If Mid$(style, 1, 1) <> "-" Then tgt.Font.Bold = (Mid$(style, 1, 1) = "1")
+    If Mid$(style, 2, 1) <> "-" Then tgt.Font.Italic = (Mid$(style, 2, 1) = "1")
+    If Mid$(style, 3, 1) = "1" Then tgt.Font.Underline = xlUnderlineStyleSingle
+    If Mid$(style, 3, 1) = "0" Then tgt.Font.Underline = xlUnderlineStyleNone
     Application.ScreenUpdating = prevScreen
 
     If Not entry Is Nothing Then Undo_Push entry
@@ -249,21 +255,43 @@ End Function
 
 ' Works out which preset to apply next from the target's current state.
 Private Function NextPresetIndex(ByVal presets As Collection, ByVal curFormat As String, ByVal curFont As String, _
-                                 ByVal curFill As String, ByVal useColours As Boolean) As Long
+                                 ByVal curFill As String, ByVal useColours As Boolean, _
+                                 Optional ByVal curStyle As String = "???") As Long
     Dim n As Long, i As Long, p As Scripting.Dictionary
-    Dim fmts() As String, canon() As String, fonts() As String, fills() As String
+    Dim fmts() As String, canon() As String, fonts() As String, fills() As String, styles() As String
 
     n = presets.Count
-    ReDim fmts(1 To n): ReDim canon(1 To n): ReDim fonts(1 To n): ReDim fills(1 To n)
+    ReDim fmts(1 To n): ReDim canon(1 To n): ReDim fonts(1 To n): ReDim fills(1 To n): ReDim styles(1 To n)
     For i = 1 To n
         Set p = presets(i)
         fmts(i) = p("numberFormat")
         canon(i) = Fmt_Canonical(p("numberFormat"))
         fonts(i) = p("fontColor")
         fills(i) = p("fillColor")
+        styles(i) = Store_PresetStyle(p)
     Next i
 
-    NextPresetIndex = Core_NextIndex(Core_BestMatch(curFormat, curFont, curFill, fmts, canon, fonts, fills, useColours), n)
+    NextPresetIndex = Core_NextIndex(Core_BestMatch(curFormat, curFont, curFill, fmts, canon, fonts, fills, useColours, _
+                                                    curStyle, styles), n)
+End Function
+
+' A cell's bold, italic, underline as "1" / "0" ("?" when mixed, e.g. rich text).
+Private Function CellStyle(ByVal c As Range) As String
+    Dim v As Variant, s As String
+    On Error Resume Next
+    v = c.Font.Bold
+    If IsNull(v) Then s = "?" Else s = IIf(v, "1", "0")
+    v = c.Font.Italic
+    If IsNull(v) Then s = s & "?" Else s = s & IIf(v, "1", "0")
+    v = c.Font.Underline
+    If IsNull(v) Then
+        s = s & "?"
+    ElseIf v = xlUnderlineStyleNone Then
+        s = s & "0"
+    Else
+        s = s & "1"
+    End If
+    CellStyle = s
 End Function
 
 ' "#RRGGBB" of a cell's font, or "" when automatic or mixed (rich text).

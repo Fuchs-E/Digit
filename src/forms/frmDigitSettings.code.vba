@@ -1,5 +1,6 @@
 '==============================================================================
-' frmDigitSettings - preset editor.
+' frmDigitSettings - Digit settings: two tabs, Presets (groups, pictures,
+' formats, colours, bold / italic / underline) and Ribbon & shortcuts.
 '
 ' This is the form's code module. The form's controls are created by
 ' build/DigitFormBuilder.bas (control names below must match it), and build.ps1
@@ -12,7 +13,8 @@
 Option Explicit
 
 Private Const SAMPLE_DEFAULT As Double = 1234567.891
-Private Const ICON_CELLS As Long = 66          ' imgPick1..66, created by DigitFormBuilder
+Private Const ICON_CELLS As Long = 77          ' imgPick1..77, created by DigitFormBuilder
+Private Const MENU_DIVIDER As String = "  - - -  in the Digit menu  - - -"
 Private mIconNames As Collection         ' every picture on offer (Digit icons first)
 Private mIconPage As Long
 
@@ -25,7 +27,8 @@ Private mDirty As Boolean
 '------------------------------------------------------------------------------
 
 Private Sub UserForm_Initialize()
-    Me.Caption = "Digit " & DIGIT_VERSION & " - Presets"
+    Me.Caption = "Digit " & DIGIT_VERSION & " - Settings"
+    mpTabs.Value = 0
     mLoading = True
     txtSample.Text = Format$(SAMPLE_DEFAULT, "0.000")
     FillFormatSuggestions
@@ -77,6 +80,7 @@ Private Sub LoadAll(ByVal cfg As Scripting.Dictionary)
     mLoading = True
     chkShortcuts.Value = Store_ShortcutsEnabled(mCfg)
     chkLarge.Value = Store_LargeButtons(mCfg)
+    chkUpdates.Value = Store_CheckForUpdates(mCfg)
     For i = 1 To DIGIT_SLOT_COUNT
         KeyBox(i).Text = Store_Shortcut(mCfg, i)
         KeyBox(i).ForeColor = vbWindowText
@@ -92,23 +96,57 @@ End Sub
 ' Groups
 '------------------------------------------------------------------------------
 
+' The group list shows the ribbon order: groups 1-5 numbered, then a divider
+' row, then the groups that appear in the Digit menu. These two functions map
+' between list rows and group numbers (0 = the divider / nothing).
+Private Function CurGroupIndex() As Long
+    Dim li As Long
+    li = lstGroups.ListIndex
+    If li < 0 Then Exit Function
+    If mCfg("groups").Count > DIGIT_SLOT_COUNT Then
+        If li < DIGIT_SLOT_COUNT Then
+            CurGroupIndex = li + 1
+        ElseIf li > DIGIT_SLOT_COUNT Then
+            CurGroupIndex = li                      ' one divider row above
+        End If
+    Else
+        CurGroupIndex = li + 1
+    End If
+    If CurGroupIndex > mCfg("groups").Count Then CurGroupIndex = 0
+End Function
+
+Private Function ListRowOfGroup(ByVal gi As Long) As Long
+    If gi > DIGIT_SLOT_COUNT And mCfg("groups").Count > DIGIT_SLOT_COUNT Then
+        ListRowOfGroup = gi                         ' skip the divider
+    Else
+        ListRowOfGroup = gi - 1
+    End If
+End Function
+
 Private Function CurGroup() As Scripting.Dictionary
-    If lstGroups.ListIndex < 0 Then Exit Function
-    If lstGroups.ListIndex + 1 > mCfg("groups").Count Then Exit Function
-    Set CurGroup = mCfg("groups")(lstGroups.ListIndex + 1)
+    Dim gi As Long
+    gi = CurGroupIndex()
+    If gi < 1 Then Exit Function
+    Set CurGroup = mCfg("groups")(gi)
 End Function
 
 Private Sub RefreshGroups(ByVal selectIndex As Long)
-    Dim g As Scripting.Dictionary
+    Dim i As Long, n As Long
     mLoading = True
     lstGroups.Clear
-    For Each g In mCfg("groups")
-        lstGroups.AddItem g("name")
-    Next g
-    If lstGroups.ListCount > 0 Then
+    n = mCfg("groups").Count
+    For i = 1 To n
+        If i = DIGIT_SLOT_COUNT + 1 Then lstGroups.AddItem MENU_DIVIDER
+        If i <= DIGIT_SLOT_COUNT Then
+            lstGroups.AddItem i & "    " & mCfg("groups")(i)("name")
+        Else
+            lstGroups.AddItem "       " & mCfg("groups")(i)("name")
+        End If
+    Next i
+    If n > 0 Then
         If selectIndex < 1 Then selectIndex = 1
-        If selectIndex > lstGroups.ListCount Then selectIndex = lstGroups.ListCount
-        lstGroups.ListIndex = selectIndex - 1
+        If selectIndex > n Then selectIndex = n
+        lstGroups.ListIndex = ListRowOfGroup(selectIndex)
     End If
     mLoading = False
     RefreshPresets 1
@@ -116,6 +154,11 @@ End Sub
 
 Private Sub lstGroups_Click()
     If mLoading Then Exit Sub
+    If CurGroupIndex() = 0 And lstGroups.ListIndex >= 0 Then
+        ' The divider is not a group: select the first group after it.
+        lstGroups.ListIndex = lstGroups.ListIndex + 1
+        Exit Sub
+    End If
     RefreshPresets 1
 End Sub
 
@@ -142,7 +185,7 @@ Private Sub btnGroupRename_Click()
     If Len(nm) = 0 Or nm = oldName Then Exit Sub
     Store_RenameGroup mCfg, oldName, nm
     mDirty = True
-    RefreshGroups lstGroups.ListIndex + 1
+    RefreshGroups CurGroupIndex()
     RefreshSlots
 End Sub
 
@@ -157,7 +200,7 @@ Private Sub btnGroupDelete_Click()
     If MsgBox("Delete the preset group """ & g("name") & """?", vbQuestion + vbYesNo + vbDefaultButton2, DIGIT_TITLE) <> vbYes Then
         Exit Sub
     End If
-    idx = lstGroups.ListIndex + 1
+    idx = CurGroupIndex()
     Store_DeleteGroup mCfg, g("name")
     mDirty = True
     RefreshGroups idx
@@ -174,7 +217,7 @@ End Sub
 
 Private Sub MoveGroup(ByVal delta As Long)
     Dim i As Long
-    i = lstGroups.ListIndex + 1
+    i = CurGroupIndex()
     If i < 1 Or i + delta < 1 Or i + delta > mCfg("groups").Count Then Exit Sub
     Coll_Swap mCfg("groups"), i, i + delta
     mDirty = True
@@ -226,7 +269,7 @@ Private Sub RefreshPresets(ByVal selectIndex As Long)
             Set p = g("presets")(i)
             lstPresets.AddItem CStr(i)
             lstPresets.List(i - 1, 1) = p("numberFormat")
-            lstPresets.List(i - 1, 2) = Fmt_Preview(p("numberFormat"), v)
+            lstPresets.List(i - 1, 2) = PresetLooks(p, v)
         Next i
         If lstPresets.ListCount > 0 Then
             If selectIndex < 1 Then selectIndex = 1
@@ -238,6 +281,24 @@ Private Sub RefreshPresets(ByVal selectIndex As Long)
     LoadIcon
     LoadPreset
 End Sub
+
+' "12.3%  -  bold, font colour": the sample in this format plus its extras in
+' words (a list box cannot show bold or coloured text itself).
+Private Function PresetLooks(ByVal p As Scripting.Dictionary, ByVal v As Double) As String
+    Dim s As String, extra As String, st As String, k As Long
+    s = Fmt_Preview(p("numberFormat"), v)
+    st = Store_PresetStyle(p)
+    For k = 1 To 3
+        Select Case Mid$(st, k, 1)
+            Case "1": extra = extra & ", " & Store_StyleKey(k)
+            Case "0": extra = extra & ", not " & Store_StyleKey(k)
+        End Select
+    Next k
+    If Len(p("fontColor")) > 0 Then extra = extra & ", font colour"
+    If Len(p("fillColor")) > 0 Then extra = extra & ", fill"
+    If Len(extra) > 0 Then s = s & "   -   " & Mid$(extra, 3)
+    PresetLooks = s
+End Function
 
 Private Sub lstPresets_Click()
     If mLoading Then Exit Sub
@@ -269,8 +330,8 @@ Private Sub UpdateEditor()
 
     btnGroupRename.Enabled = Not g Is Nothing
     btnGroupDelete.Enabled = Not g Is Nothing
-    btnGroupUp.Enabled = lstGroups.ListIndex > 0
-    btnGroupDown.Enabled = lstGroups.ListIndex >= 0 And lstGroups.ListIndex < lstGroups.ListCount - 1
+    btnGroupUp.Enabled = CurGroupIndex() > 1
+    btnGroupDown.Enabled = CurGroupIndex() >= 1 And CurGroupIndex() < mCfg("groups").Count
 
     btnPresetAdd.Enabled = Not g Is Nothing And n < DIGIT_MAX_PRESETS
     btnPresetDelete.Enabled = Not p Is Nothing And n > 1
@@ -282,6 +343,10 @@ Private Sub UpdateEditor()
     btnFontNone.Enabled = Not p Is Nothing
     btnFillPick.Enabled = Not p Is Nothing
     btnFillNone.Enabled = Not p Is Nothing
+    chkBold.Enabled = Not p Is Nothing
+    chkItalic.Enabled = Not p Is Nothing
+    chkUnderline.Enabled = Not p Is Nothing
+    If Not g Is Nothing Then fraEditor.Caption = "Selected preset (" & idx & " of " & n & ")"
 
     If p Is Nothing Then
         ShowSwatch lblFontSwatch, ""
@@ -290,6 +355,8 @@ Private Sub UpdateEditor()
         lblPreview.Caption = ""
         Exit Sub
     End If
+
+    ShowStyle p
 
     ShowSwatch lblFontSwatch, p("fontColor")
     ShowSwatch lblFillSwatch, p("fillColor")
@@ -315,7 +382,49 @@ Private Sub UpdateEditor()
     bc = Core_HexToColor(p("fillColor"))
     If fc >= 0 Then lblPreview.ForeColor = fc Else lblPreview.ForeColor = vbBlack
     If bc >= 0 Then lblPreview.BackColor = bc Else lblPreview.BackColor = vbWhite
+    lblPreview.Font.Bold = (Mid$(Store_PresetStyle(p), 1, 1) = "1")
+    lblPreview.Font.Italic = (Mid$(Store_PresetStyle(p), 2, 1) = "1")
+    lblPreview.Font.Underline = (Mid$(Store_PresetStyle(p), 3, 1) = "1")
 End Sub
+
+'------------------------------------------------------------------------------
+' Bold / italic / underline: ticked = on, empty = off, grey (Null) = leave as is
+'------------------------------------------------------------------------------
+
+Private Sub ShowStyle(ByVal p As Scripting.Dictionary)
+    Dim st As String, wasLoading As Boolean
+    st = Store_PresetStyle(p)
+    wasLoading = mLoading
+    mLoading = True
+    chkBold.Value = TriValue(Mid$(st, 1, 1))
+    chkItalic.Value = TriValue(Mid$(st, 2, 1))
+    chkUnderline.Value = TriValue(Mid$(st, 3, 1))
+    mLoading = wasLoading
+End Sub
+
+Private Function TriValue(ByVal ch As String) As Variant
+    Select Case ch
+        Case "1": TriValue = True
+        Case "0": TriValue = False
+        Case Else: TriValue = Null
+    End Select
+End Function
+
+Private Sub StyleChanged(ByVal key As String, ByVal v As Variant)
+    Dim p As Scripting.Dictionary, i As Long
+    If mLoading Then Exit Sub
+    Set p = CurPreset()
+    If p Is Nothing Then Exit Sub
+    Store_SetPresetStyle p, key, v
+    mDirty = True
+    i = lstPresets.ListIndex
+    If i >= 0 Then lstPresets.List(i, 2) = PresetLooks(p, SampleValue())
+    UpdateEditor
+End Sub
+
+Private Sub chkBold_Change(): StyleChanged "bold", chkBold.Value: End Sub
+Private Sub chkItalic_Change(): StyleChanged "italic", chkItalic.Value: End Sub
+Private Sub chkUnderline_Change(): StyleChanged "underline", chkUnderline.Value: End Sub
 
 Private Sub ShowSwatch(ByVal lbl As MSForms.Label, ByVal hexColor As String)
     Dim c As Long
@@ -341,7 +450,7 @@ Private Sub cboFormat_Change()
     i = lstPresets.ListIndex
     If i >= 0 Then
         lstPresets.List(i, 1) = cboFormat.Text
-        lstPresets.List(i, 2) = Fmt_Preview(cboFormat.Text, SampleValue())
+        lstPresets.List(i, 2) = PresetLooks(p, SampleValue())
     End If
     UpdateEditor
 End Sub
@@ -355,7 +464,7 @@ Private Sub btnPresetAdd_Click()
     If p Is Nothing Then
         g("presets").Add Store_NewPreset("General")
     Else
-        g("presets").Add Store_NewPreset(p("numberFormat"), p("fontColor"), p("fillColor"))
+        g("presets").Add Store_NewPreset(p("numberFormat"), p("fontColor"), p("fillColor"), Store_PresetStyle(p))
     End If
     mDirty = True
     RefreshPresets g("presets").Count
@@ -460,7 +569,7 @@ Private Sub txtSample_Change()
     If g Is Nothing Then Exit Sub
     v = SampleValue()
     For i = 1 To g("presets").Count
-        If i <= lstPresets.ListCount Then lstPresets.List(i - 1, 2) = Fmt_Preview(g("presets")(i)("numberFormat"), v)
+        If i <= lstPresets.ListCount Then lstPresets.List(i - 1, 2) = PresetLooks(g("presets")(i), v)
     Next i
     UpdateEditor
 End Sub
@@ -563,7 +672,7 @@ Private Sub LoadIcon()
     mLoading = True
     txtIcon.Text = Store_GroupIcon(g)
     mLoading = False
-    btnIconPick.Enabled = Not g Is Nothing
+    lblIconPick.Enabled = Not g Is Nothing
     btnIconNone.Enabled = Not g Is Nothing
     ShowIcon
     Exit Sub
@@ -587,19 +696,27 @@ Fail:
     PickerError "SetIcon"
 End Sub
 
-Private Sub btnIconPick_Click()
+Private Sub lblIconPick_Click()
     On Error GoTo Fail
     If CurGroup() Is Nothing Then Exit Sub
+    fraIcons.Caption = "Choose a picture for """ & CurGroup()("name") & """"
     ShowIconPage PageOfIcon(Trim$(txtIcon.Text))
-    fraIcons.Visible = True
-    fraIcons.ZOrder 0
+    ShowPicker True
     Exit Sub
 Fail:
-    PickerError "btnIconPick_Click"
+    PickerError "lblIconPick_Click"
 End Sub
 
 Private Sub imgIcon_Click()
-    btnIconPick_Click
+    lblIconPick_Click
+End Sub
+
+' The picker takes the place of the two preset frames while it is open.
+Private Sub ShowPicker(ByVal show As Boolean)
+    fraPresets.Visible = Not show
+    fraEditor.Visible = Not show
+    fraIcons.Visible = show
+    If show Then fraIcons.ZOrder 0
 End Sub
 
 Private Sub btnIconNone_Click()
@@ -611,13 +728,13 @@ Fail:
 End Sub
 
 Private Sub btnIconClose_Click()
-    fraIcons.Visible = False
+    ShowPicker False
 End Sub
 
 Private Sub PickIcon(ByVal k As Long)
     On Error GoTo Fail
     SetIcon Me.Controls("imgPick" & k).Tag
-    fraIcons.Visible = False
+    ShowPicker False
     Exit Sub
 Fail:
     PickerError "PickIcon"
@@ -754,6 +871,17 @@ Private Sub imgPick63_Click(): PickIcon 63: End Sub
 Private Sub imgPick64_Click(): PickIcon 64: End Sub
 Private Sub imgPick65_Click(): PickIcon 65: End Sub
 Private Sub imgPick66_Click(): PickIcon 66: End Sub
+Private Sub imgPick67_Click(): PickIcon 67: End Sub
+Private Sub imgPick68_Click(): PickIcon 68: End Sub
+Private Sub imgPick69_Click(): PickIcon 69: End Sub
+Private Sub imgPick70_Click(): PickIcon 70: End Sub
+Private Sub imgPick71_Click(): PickIcon 71: End Sub
+Private Sub imgPick72_Click(): PickIcon 72: End Sub
+Private Sub imgPick73_Click(): PickIcon 73: End Sub
+Private Sub imgPick74_Click(): PickIcon 74: End Sub
+Private Sub imgPick75_Click(): PickIcon 75: End Sub
+Private Sub imgPick76_Click(): PickIcon 76: End Sub
+Private Sub imgPick77_Click(): PickIcon 77: End Sub
 
 '------------------------------------------------------------------------------
 ' Quick-button slots and shortcuts
@@ -770,21 +898,8 @@ Private Sub RefreshSlots()
     For i = 1 To DIGIT_SLOT_COUNT
         nm = Store_SlotGroupName(mCfg, i)
         If Len(nm) = 0 Then nm = "(no group)"
-        Me.Controls("lblSlot" & i).Caption = i & ": " & nm
+        Me.Controls("lblSlot" & i).Caption = i & "    " & nm
     Next i
-    UpdateMoreHint
-End Sub
-
-Private Sub UpdateMoreHint()
-    Dim g As Scripting.Dictionary, s As String
-    For Each g In mCfg("groups")
-        If Not Store_IsInSlot(mCfg, g("name")) Then
-            If Len(s) > 0 Then s = s & ", "
-            s = s & g("name")
-        End If
-    Next g
-    If Len(s) = 0 Then s = "(none)"
-    lblHint.Caption = "Under ""More presets"": " & s
 End Sub
 
 Private Sub KeyChanged(ByVal i As Long)
@@ -805,6 +920,12 @@ Private Sub txtKey2_Change(): KeyChanged 2: End Sub
 Private Sub txtKey3_Change(): KeyChanged 3: End Sub
 Private Sub txtKey4_Change(): KeyChanged 4: End Sub
 Private Sub txtKey5_Change(): KeyChanged 5: End Sub
+
+Private Sub chkUpdates_Click()
+    If mLoading Then Exit Sub
+    mCfg("settings")("checkForUpdates") = CBool(chkUpdates.Value)
+    mDirty = True
+End Sub
 
 Private Sub chkLarge_Click()
     If mLoading Then Exit Sub
@@ -918,7 +1039,7 @@ Private Sub btnImport_Click()
                     Set existing("presets") = g("presets")
                 End If
             Next g
-            RefreshGroups lstGroups.ListIndex + 1
+            RefreshGroups CurGroupIndex()
             RefreshSlots
         Case Else
             Exit Sub
@@ -930,7 +1051,8 @@ Private Sub btnExport_Click()
     Dim f As Variant, errMsg As String
     f = Application.GetSaveAsFilename("presets.json", "Digit presets (*.json),*.json", 1, "Export Digit presets")
     If VarType(f) = vbBoolean Then Exit Sub
-    If Store_WriteText(CStr(f), Store_ToJson(Store_Normalize(mCfg)), errMsg) Then
+    If Store_WriteText(CStr(f), Store_ToJson(Store_Clone(mCfg)), errMsg) Then
+
         MsgBox "Presets exported to:" & vbCrLf & f & vbCrLf & vbCrLf & _
                "(This includes any unsaved changes shown in this window.)", vbInformation, DIGIT_TITLE
     Else

@@ -2,7 +2,7 @@
 
 Digit is an Excel add-in for Windows desktop (Microsoft 365). It adds a **Digit** group to the ribbon's **Home** tab, next to Number, with one-click buttons that apply your own formatting presets to the selected cells.
 
-Each quick button holds a **preset group** of up to three presets. Click it again and it moves to the next preset: 1 → 2 → 3 → 1. A preset is a number format plus an optional font colour and fill colour. Nothing is built in. You decide what the groups are and which ones go on the buttons.
+Each quick button holds a **preset group** of up to three presets. Click it again and it moves to the next preset: 1 → 2 → 3 → 1. A preset is a number format plus an optional font colour, fill colour, and bold / italic / underline. Nothing is built in. You decide what the groups are and which ones go on the buttons.
 
 Phase 1 (this repository) is a VBA add-in (`Digit.xlam`). Presets are kept in a JSON file outside the add-in, and the formatting logic is kept apart from the UI, so a later C# COM/VSTO add-in can reuse both.
 
@@ -16,7 +16,7 @@ Phase 1 (this repository) is a VBA add-in (`Digit.xlam`). Presets are kept in a 
 | **Targeting** | Normal ranges and multi-area selections. A single cell in an Excel table formats the whole table column. A pivot values cell sets the DataField's number format, so it survives refresh. |
 | **Undo Format** | Digit keeps its own history of the last 10 changes. Ctrl+Z works straight after a change. |
 | **Shortcuts** | Ctrl+Alt+1 … Ctrl+Alt+5 by default. You can change them in Settings. |
-| **Settings** | Create, rename, reorder and delete groups and presets. Includes a live preview, colour pickers, format checks, and import/export of presets. |
+| **Settings** | Two tabs. *Presets*: groups in ribbon order, button pictures, and the preset editor (format, colours, bold / italic / underline, live preview). *Ribbon & shortcuts*: shortcuts, large buttons, daily update check, import/export. |
 | **Updates** | **Check for updates** in the Digit menu, plus a quiet daily check when Excel starts. A new version is built and tested in the background and installed when you close Excel. See [docs/INSTALL.md](docs/INSTALL.md#updates). |
 | **Storage** | `%APPDATA%\Digit\presets.json`. It survives add-in updates and can be shared with your team. |
 
