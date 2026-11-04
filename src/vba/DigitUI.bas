@@ -154,13 +154,9 @@ Public Function UI_IconExists(ByVal name As String) As Boolean
     If Icons_IsCustom(name) Then UI_IconExists = Icons_Exists(name) Else UI_IconExists = UI_IsOfficeIcon(name)
 End Function
 
-' 32x32 picture for the settings window (drawn on white), or Nothing.
+' 32x32 picture for the settings window (on white), or Nothing.
 Public Function UI_IconPicture(ByVal name As String) As Object
-    If Icons_IsCustom(name) Then
-        Set UI_IconPicture = Icons_Picture(name, &HFFFFFF)
-    Else
-        Set UI_IconPicture = Icons_Flatten(UI_OfficeIconPicture(name), &HFFFFFF)
-    End If
+    Set UI_IconPicture = Icons_FormPicture(name)
 End Function
 
 '------------------------------------------------------------------------------

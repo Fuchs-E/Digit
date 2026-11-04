@@ -181,6 +181,8 @@ Private Sub Test_Icons()
     Check Not Icons_Picture("digit:pct_green") Is Nothing, "digit icon picture for the ribbon"
     Check Not Icons_Picture("digit:pct_green", &HFFFFFF) Is Nothing, "digit icon picture for forms"
     Check UI_IconExists("digit:dec1_blue"), "UI knows digit icons"
+    Check Not Icons_FormPicture("digit:pct_green") Is Nothing, "digit icon loads in the settings window"
+    Check Icons_FormPicture("digit:no_such_icon") Is Nothing, "unknown digit icon has no picture"
     Check Not UI_IconExists("NoSuchOfficeIcon123"), "unknown office icon"
     Set c = UI_IconCandidates()
     Check c.Count > Icons_List().Count + 50, "picker offers office icons too"

@@ -104,14 +104,20 @@ Public Sub Digit_GetMenuImage(ByVal control As IRibbonControl, ByRef returnedVal
 End Sub
 
 ' A name gives an Office icon; a Digit icon must be handed over as a picture.
+' If a Digit icon cannot be loaded, the ribbon shows "_1" rather than an error.
 Private Sub SetImage(ByRef returnedVal As Variant, ByVal nm As String)
     Dim pic As Object
+    On Error GoTo Fallback
     If Icons_IsCustom(nm) Then
         Set pic = Icons_Picture(nm)
         If Not pic Is Nothing Then Set returnedVal = pic: Exit Sub
         nm = "_1"
     End If
     returnedVal = nm
+    Exit Sub
+Fallback:
+    On Error Resume Next
+    returnedVal = "_1"
 End Sub
 
 Private Function ButtonIcon(ByVal g As Scripting.Dictionary, ByVal fallback As String) As String

@@ -1,4 +1,4 @@
 {
-  "version": "1.1.8",
-  "notes": "Office icons in the picture picker now show on white instead of black. If the picker hits an error it now shows a message naming the step, instead of stopping in the VBA editor."
+  "version": "1.1.9",
+  "notes": "Fixes the type mismatch when choosing a button picture, and the black Office icons in the picker: the picker now shows every picture on a white background."
 }

@@ -4,15 +4,21 @@ Attribute VB_Name = "DigitIcons"
 '
 ' The build stores each PNG from src/icons on the add-in's hidden sheet
 ' (column E = name, column F = base64). On start-up they are written to
-' %APPDATA%\Digit\icons, and GDI+ turns a PNG into a picture the ribbon and the
-' settings window can show. Built-in Office icons (imageMso names) are handled
-' in DigitUI; UI_IconExists covers both kinds.
+' %APPDATA%\Digit\icons, and GDI+ turns a PNG into a transparent picture for
+' the ribbon.
+'
+' The settings window cannot show transparency, and assigning pictures made in
+' memory to its Image controls proved unreliable, so it only ever loads plain
+' BMP files with LoadPicture: Digit icons come with a white-background BMP
+' (column G), and Office icons are saved once as BMP on white (Icons_FormPicture).
 '==============================================================================
 Option Explicit
 
 Public Const DIGIT_ICON_PREFIX As String = "digit:"
 Private Const NAME_COL As Long = 5             ' E
-Private Const DATA_COL As Long = 6             ' F
+Private Const DATA_COL As Long = 6             ' F: PNG for the ribbon
+Private Const FORM_COL As Long = 7             ' G: BMP on white for the settings window
+Private Const OFFICE_CACHE As String = "office-v1"   ' change when the BMP conversion changes
 
 Private Type GdiplusStartupInput
     GdiplusVersion As Long
@@ -49,26 +55,8 @@ Private Type DIGIT_BITMAP
     bmBits As LongPtr
 End Type
 
-Private Type DIGIT_BITMAPINFOHEADER
-    biSize As Long
-    biWidth As Long
-    biHeight As Long
-    biPlanes As Integer
-    biBitCount As Integer
-    biCompression As Long
-    biSizeImage As Long
-    biXPelsPerMeter As Long
-    biYPelsPerMeter As Long
-    biClrUsed As Long
-    biClrImportant As Long
-End Type
-
 Private Declare PtrSafe Function GetObjectW Lib "gdi32" (ByVal hObj As LongPtr, ByVal cb As Long, ByRef pv As Any) As Long
-Private Declare PtrSafe Function GetDIBits Lib "gdi32" (ByVal hdc As LongPtr, ByVal hbm As LongPtr, ByVal uStart As Long, ByVal cLines As Long, ByRef lpvBits As Any, ByRef lpbmi As DIGIT_BITMAPINFOHEADER, ByVal usage As Long) As Long
-Private Declare PtrSafe Function SetDIBits Lib "gdi32" (ByVal hdc As LongPtr, ByVal hbm As LongPtr, ByVal uStart As Long, ByVal cLines As Long, ByRef lpvBits As Any, ByRef lpbmi As DIGIT_BITMAPINFOHEADER, ByVal usage As Long) As Long
-Private Declare PtrSafe Function CreateCompatibleBitmap Lib "gdi32" (ByVal hdc As LongPtr, ByVal cx As Long, ByVal cy As Long) As LongPtr
-Private Declare PtrSafe Function GetDC Lib "user32" (ByVal hwnd As LongPtr) As LongPtr
-Private Declare PtrSafe Function ReleaseDC Lib "user32" (ByVal hwnd As LongPtr, ByVal hdc As LongPtr) As Long
+Private Declare PtrSafe Sub CopyMemory Lib "kernel32" Alias "RtlMoveMemory" (ByRef dest As Any, ByRef src As Any, ByVal cb As LongPtr)
 Private Declare PtrSafe Function OleCreatePictureIndirect Lib "oleaut32" (ByRef pictDesc As DIGIT_PICTDESC, ByRef riid As DIGIT_GUID, ByVal fOwn As Long, ByRef ppvObj As IPicture) As Long
 
 Private mToken As LongPtr
@@ -111,7 +99,7 @@ End Function
 ' Writes the packed icons to the icons folder (once per session; only files that
 ' are missing or differ in size are rewritten).
 Public Sub Icons_Extract()
-    Dim ws As Worksheet, r As Long, nm As String, bytes() As Byte, path As String, f As Integer, errMsg As String
+    Dim ws As Worksheet, r As Long, nm As String, errMsg As String
     If StrComp(mExtractedTo, Icons_Folder(), vbTextCompare) = 0 Then Exit Sub
     mExtractedTo = Icons_Folder()
     Set mCache = Nothing
@@ -122,14 +110,9 @@ Public Sub Icons_Extract()
     r = 1
     Do While Len(CStr(ws.Cells(r, NAME_COL).Value)) > 0
         nm = CStr(ws.Cells(r, NAME_COL).Value)
-        bytes = Base64Decode(CStr(ws.Cells(r, DATA_COL).Value))
-        path = Icons_Folder() & "\" & nm & ".png"
-        If FileSize(path) <> UBound(bytes) + 1 Then
-            If Len(Dir$(path)) > 0 Then Kill path
-            f = FreeFile
-            Open path For Binary Access Write As #f
-            Put #f, , bytes
-            Close #f
+        WriteIfChanged Icons_Folder() & "\" & nm & ".png", Base64Decode(CStr(ws.Cells(r, DATA_COL).Value))
+        If Len(CStr(ws.Cells(r, FORM_COL).Value)) > 0 Then
+            WriteIfChanged Icons_Folder() & "\" & nm & ".bmp", Base64Decode(CStr(ws.Cells(r, FORM_COL).Value))
         End If
         r = r + 1
     Loop
@@ -177,66 +160,114 @@ Public Function Icons_Picture(ByVal nm As String, Optional ByVal background As V
     Set Icons_Picture = pic
 End Function
 
-' A copy of pic (a 32-bit picture with transparency, such as GetImageMso
-' returns) blended onto a solid colour. UserForm Image controls ignore
-' transparency and show those areas black. Returns pic itself when it has no
-' transparency or cannot be read.
-Public Function Icons_Flatten(ByVal pic As Object, ByVal bgColor As Long) As Object
-    Dim bm As DIGIT_BITMAP, bi As DIGIT_BITMAPINFOHEADER, hdc As LongPtr, hbm As LongPtr, src As LongPtr
-    Dim px() As Long, i As Long, n As Long, v As Long, a As Long, r As Long, g As Long, b As Long
-    Dim bgR As Long, bgG As Long, bgB As Long, anyAlpha As Boolean
-    Dim pd As DIGIT_PICTDESC, iid As DIGIT_GUID, out As IPicture
-
-    Set Icons_Flatten = pic
-    If pic Is Nothing Then Exit Function
+' Picture for the settings window, loaded from a plain BMP on white, or Nothing.
+Public Function Icons_FormPicture(ByVal nm As String) As Object
+    Dim path As String, errMsg As String
+    nm = Trim$(nm)
+    If Len(nm) = 0 Then Exit Function
     On Error GoTo Done
-    src = CLngPtr(pic.Handle)
-    If GetObjectW(src, LenB(bm), bm) = 0 Then Exit Function
-    If bm.bmBitsPixel <> 32 Or bm.bmWidth <= 0 Or bm.bmHeight <= 0 Then Exit Function
-
-    bi.biSize = LenB(bi)
-    bi.biWidth = bm.bmWidth
-    bi.biHeight = -bm.bmHeight                  ' top-down
-    bi.biPlanes = 1
-    bi.biBitCount = 32
-    n = bm.bmWidth * bm.bmHeight
-    ReDim px(0 To n - 1)
-    hdc = GetDC(0)
-    If GetDIBits(hdc, src, 0, bm.bmHeight, px(0), bi, 0) = 0 Then ReleaseDC 0, hdc: Exit Function
-
-    For i = 0 To n - 1
-        If (px(i) And &HFF000000) <> 0 Then anyAlpha = True: Exit For
-    Next i
-    If Not anyAlpha Then ReleaseDC 0, hdc: Exit Function
-
-    bgR = bgColor And &HFF&: bgG = (bgColor \ &H100&) And &HFF&: bgB = (bgColor \ &H10000) And &HFF&
-    For i = 0 To n - 1
-        v = px(i)
-        a = (v And &H7F000000) \ &H1000000
-        If v < 0 Then a = a Or &H80&
-        b = v And &HFF&: g = (v \ &H100&) And &HFF&: r = (v And &HFF0000) \ &H10000
-        ' Colours are premultiplied by alpha: add the background where it shows.
-        r = r + ((255 - a) * bgR) \ 255: If r > 255 Then r = 255
-        g = g + ((255 - a) * bgG) \ 255: If g > 255 Then g = 255
-        b = b + ((255 - a) * bgB) \ 255: If b > 255 Then b = 255
-        px(i) = b Or (g * &H100&) Or (r * &H10000)
-    Next i
-
-    hbm = CreateCompatibleBitmap(hdc, bm.bmWidth, bm.bmHeight)
-    If hbm = 0 Then ReleaseDC 0, hdc: Exit Function
-    SetDIBits hdc, hbm, 0, bm.bmHeight, px(0), bi, 0
-    ReleaseDC 0, hdc
-
-    pd.cbSizeofstruct = LenB(pd)
-    pd.picType = 1
-    pd.hImage = hbm
-    iid.Data1 = &H7BF80980: iid.Data2 = &HBF32: iid.Data3 = &H101A
-    iid.Data4(0) = &H8B: iid.Data4(1) = &HBB: iid.Data4(2) = &H0: iid.Data4(3) = &HAA
-    iid.Data4(4) = &H0: iid.Data4(5) = &H30: iid.Data4(6) = &HC: iid.Data4(7) = &HAB
-    If OleCreatePictureIndirect(pd, iid, 1, out) <> 0 Then Exit Function
-    Set Icons_Flatten = out
+    If Icons_IsCustom(nm) Then
+        If Not Icons_Exists(nm) Then Exit Function
+        path = Icons_Folder() & "\" & Mid$(nm, Len(DIGIT_ICON_PREFIX) + 1) & ".bmp"
+    Else
+        path = Icons_Folder() & "\" & OFFICE_CACHE & "\" & SafeFileName(nm) & ".bmp"
+        If Len(Dir$(path)) = 0 Then
+            If Not Store_EnsureFolder(Icons_Folder(), errMsg) Then Exit Function
+            If Not Store_EnsureFolder(Icons_Folder() & "\" & OFFICE_CACHE, errMsg) Then Exit Function
+            If Not SaveOfficeIconBmp(nm, path) Then Exit Function
+        End If
+    End If
+    If Len(Dir$(path)) = 0 Then Exit Function
+    Set Icons_FormPicture = LoadPicture(path)
 Done:
 End Function
+
+' Saves an Office icon (32x32) as a 24-bit BMP blended onto white. GetImageMso
+' returns a 32-bit DIB section with premultiplied alpha; its pixels are read
+' straight from memory (GetDIBits can fail while the picture holds the bitmap).
+Private Function SaveOfficeIconBmp(ByVal nm As String, ByVal path As String) As Boolean
+    Dim pic As Object, h As LongPtr, bm As DIGIT_BITMAP, buf(0 To 255) As Byte, got As Long
+    Dim height As Long, w As Long, hgt As Long, rowBytes As Long, src() As Byte, out() As Byte
+    Dim x As Long, y As Long, srcRow As Long, si As Long, oi As Long, a As Long, c As Long, k As Long
+    Dim outRow As Long, anyAlpha As Boolean, ofs As Long
+
+    On Error GoTo Done
+    Set pic = Application.CommandBars.GetImageMso(nm, 32, 32)
+    If pic Is Nothing Then Exit Function
+    h = CLngPtr(pic.Handle)
+    If GetObjectW(h, LenB(bm), bm) = 0 Then Exit Function
+    If bm.bmBitsPixel <> 32 Or bm.bmBits = 0 Then Exit Function
+    w = bm.bmWidth: hgt = bm.bmHeight: rowBytes = bm.bmWidthBytes
+    If w <= 0 Or hgt <= 0 Or rowBytes < w * 4 Then Exit Function
+
+    ' Row order: DIBSECTION.dsBmih.biHeight (> 0 = bottom-up, the usual case).
+    height = hgt
+    got = GetObjectW(h, 256, buf(0))
+#If Win64 Then
+    ofs = 32 + 8
+#Else
+    ofs = 24 + 8
+#End If
+    If got >= ofs + 4 Then CopyMemory height, buf(ofs), 4
+
+    ReDim src(0 To rowBytes * hgt - 1)
+    CopyMemory src(0), ByVal bm.bmBits, rowBytes * hgt
+    For k = 3 To UBound(src) Step 4
+        If src(k) <> 0 Then anyAlpha = True: Exit For
+    Next k
+
+    outRow = ((w * 3 + 3) \ 4) * 4
+    ReDim out(0 To 54 + outRow * hgt - 1)
+    out(0) = 66: out(1) = 77                                   ' "BM"
+    PutLong out, 2, 54 + outRow * hgt
+    PutLong out, 10, 54
+    PutLong out, 14, 40
+    PutLong out, 18, w
+    PutLong out, 22, hgt                                       ' bottom-up
+    out(26) = 1: out(28) = 24
+    PutLong out, 34, outRow * hgt
+
+    For y = 0 To hgt - 1                                       ' y = 0 is the bottom row in the file
+        If height > 0 Then srcRow = y Else srcRow = hgt - 1 - y
+        For x = 0 To w - 1
+            si = srcRow * rowBytes + x * 4
+            oi = 54 + y * outRow + x * 3
+            If anyAlpha Then a = src(si + 3) Else a = 255
+            For k = 0 To 2                                     ' B, G, R
+                c = CLng(src(si + k)) + (255 - a)
+                If c > 255 Then c = 255
+                out(oi + k) = c
+            Next k
+        Next x
+    Next y
+
+    WriteIfChanged path, out
+    SaveOfficeIconBmp = (Len(Dir$(path)) > 0)
+Done:
+End Function
+
+Private Sub PutLong(ByRef b() As Byte, ByVal at As Long, ByVal v As Long)
+    CopyMemory b(at), v, 4
+End Sub
+
+Private Function SafeFileName(ByVal s As String) As String
+    Dim i As Long, ch As String, out As String
+    For i = 1 To Len(s)
+        ch = Mid$(s, i, 1)
+        If ch Like "[A-Za-z0-9_-]" Then out = out & ch Else out = out & "~"
+    Next i
+    SafeFileName = out
+End Function
+
+Private Sub WriteIfChanged(ByVal path As String, ByRef bytes() As Byte)
+    Dim f As Integer
+    If FileSize(path) = UBound(bytes) - LBound(bytes) + 1 Then Exit Sub
+    If Len(Dir$(path)) > 0 Then Kill path
+    f = FreeFile
+    Open path For Binary Access Write As #f
+    Put #f, , bytes
+    Close #f
+End Sub
 
 Public Sub Icons_ClearCache()
     Set mCache = Nothing

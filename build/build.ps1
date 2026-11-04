@@ -370,7 +370,8 @@ try {
 
     Write-Step 'Packing Digit icons'
     # Each src\icons\<name>.png goes on the hidden sheet: column E = name,
-    # column F = base64. DigitIcons writes them to %APPDATA%\Digit\icons.
+    # column F = PNG (base64), column G = form\<name>.bmp (base64).
+    # DigitIcons writes them to %APPDATA%\Digit\icons.
     $iconRow = 0
     $iconSheet = $wb.Worksheets.Item(1)
     foreach ($png in @(Get-ChildItem (Join-Path $Root 'src\icons') -Filter '*.png' | Sort-Object Name)) {
@@ -379,6 +380,10 @@ try {
         if ($b64.Length -gt 32000) { throw "$($png.Name) is too large to pack (keep icons small, 32x32)." }
         $iconSheet.Range("E$iconRow").Value2 = $png.BaseName
         $iconSheet.Range("F$iconRow").Value2 = $b64
+        # Column G: the same icon on white as BMP, for the settings window.
+        $bmp = Join-Path $png.DirectoryName ("form\" + $png.BaseName + '.bmp')
+        if (-not (Test-Path $bmp)) { throw "Missing $bmp. Run src\icons\make_icons.py." }
+        $iconSheet.Range("G$iconRow").Value2 = [Convert]::ToBase64String([IO.File]::ReadAllBytes($bmp))
     }
     Write-Host "    $iconRow icons"
 

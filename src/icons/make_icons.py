@@ -29,7 +29,12 @@ def draw(t,color):
     d.text((S/2-(b[2]-b[0])/2-b[0],S/2-(b[3]-b[1])/2-b[1]),t,font=f,fill='white')
     return im
 OUT=os.path.dirname(os.path.abspath(__file__))
+os.makedirs(os.path.join(OUT,'form'),exist_ok=True)
 tiles={}
 for cname,c in COLORS.items():
     for iid,t in ICONS:
-        im=draw(t,c).resize((32,32),Image.LANCZOS); im.save(os.path.join(OUT,f'{iid}_{cname}.png')); tiles[(iid,cname)]=im
+        im=draw(t,c).resize((32,32),Image.LANCZOS); im.save(os.path.join(OUT,f'{iid}_{cname}.png'))
+        # Same picture on white as a 24-bit BMP, for the settings window (forms
+        # cannot show transparency, and LoadPicture reads BMP but not PNG).
+        flat=Image.new('RGB',(32,32),'white'); flat.paste(im,(0,0),im)
+        flat.save(os.path.join(OUT,'form',f'{iid}_{cname}.bmp')); tiles[(iid,cname)]=im
