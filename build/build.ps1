@@ -306,8 +306,17 @@ try {
     }
 
     Write-Step 'Saving add-in'
-    $wb.BuiltinDocumentProperties.Item('Title').Value = 'Digit'
-    $wb.BuiltinDocumentProperties.Item('Comments').Value = 'One-click number format presets. Ribbon tab: Digit.'
+    # DocumentProperties has no type info, so PowerShell's normal member access returns $null.
+    # Go through IDispatch by hand. These only label the add-in in Excel's Add-ins list, so a
+    # failure here is reported but does not stop the build.
+    try {
+        $props = $wb.BuiltinDocumentProperties
+        foreach ($kv in @(@('Title', 'Digit'),
+                          @('Comments', 'One-click number format presets. Ribbon tab: Digit.'))) {
+            $prop = [System.__ComObject].InvokeMember('Item', [System.Reflection.BindingFlags]::GetProperty, $null, $props, @($kv[0]))
+            [void][System.__ComObject].InvokeMember('Value', [System.Reflection.BindingFlags]::SetProperty, $null, $prop, @($kv[1]))
+        }
+    } catch { Write-Host "    (could not set the add-in title: $($_.Exception.Message))" -ForegroundColor Yellow }
     $wb.SaveAs($XlamPath, $xlOpenXMLAddIn)
     $wb.Close($false)
     Release-Com $wb; $wb = $null
