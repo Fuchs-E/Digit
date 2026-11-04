@@ -5,6 +5,7 @@ self-tests may never do (ribbon callbacks, for example), so check them here:
 
   1. A call to a procedure that is not defined (or is Private in another module).
   2. A declaration (Const, Dim, Declare, Type, Enum) after the first procedure.
+  3. A local variable declared twice in one procedure, or with a parameter's name.
 
 Names that VBA, Excel or MSForms provide are listed in BUILTINS. If the check
 flags a real built-in, add it there.
@@ -126,6 +127,30 @@ def main():
                 m = re.match(r'^\s*(?:Call\s+)?([A-Za-z_]\w*)(\s+[^=(]|\s*$)', stmt)
                 if m and m.group(1).lower() not in known and not re.match(r'^\s*\w+\s*=', stmt):
                     problems.append(f'{rel}:{n}: "{m.group(1)}" is not defined anywhere: {raw.strip()}')
+        # Duplicate local declarations within a procedure
+        cur_proc, seen, stack = None, {}, []
+        for n, raw, s in parsed[f]:
+            m = PROC_RE.match(s)
+            if m:
+                cur_proc, seen, stack = m.group(3), {}, []
+                for p in re.findall(r'(?:Optional\s+)?(?:ByVal\s+|ByRef\s+)?(?:ParamArray\s+)?([A-Za-z_]\w*)(?:\(\))?\s+As\b', m.group(4) or ''):
+                    seen[p.lower()] = n
+                continue
+            if re.match(r'^\s*End\s+(Sub|Function|Property)\b', s, re.I):
+                cur_proc = None; continue
+            if cur_proc is None: continue
+            # #If / #Else branches may declare the same name: each branch starts
+            # from what was declared before the #If.
+            if re.match(r'^\s*#If\b', s, re.I): stack.append(dict(seen)); continue
+            if re.match(r'^\s*#Else(If)?\b', s, re.I) and stack: seen = dict(stack[-1]); continue
+            if re.match(r'^\s*#End\s*If\b', s, re.I) and stack: stack.pop(); continue
+            mm = re.match(r'^\s*(?:Dim|Static)\s+(.*)', s, re.I)
+            if mm:
+                for v in re.findall(r'(?:^|,)\s*(?:WithEvents\s+)?([A-Za-z_]\w*)', mm.group(1)):
+                    if v.lower() in seen:
+                        problems.append(f'{rel}:{n}: "{v}" is already declared in {cur_proc} (line {seen[v.lower()]}): {raw.strip()}')
+                    else:
+                        seen[v.lower()] = n
         # Private procedures of other modules
         for g in FILES:
             if g == f: continue

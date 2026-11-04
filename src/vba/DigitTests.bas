@@ -217,19 +217,23 @@ Private Sub Test_Normalize()
            "{""name"":""a"",""presets"":[{""numberFormat"":""@""}]}," & _
            "{""name"":"""",""presets"":[{""numberFormat"":""@""}]}," & _
            "{""name"":""Empty"",""presets"":[]}" & _
-           "],""slots"":[""A"",""missing"",null],""settings"":{""shortcuts"":[""ctrl+alt+q"",""nonsense""],""undoDepth"":500}}"
+           ",{""name"":""B"",""presets"":[{""numberFormat"":""0""}]}" & _
+           "],""slots"":[""B"",""missing"",null],""settings"":{""shortcuts"":[""ctrl+alt+q"",""nonsense""],""undoDepth"":500}}"
     Set cfg = Store_ParseConfig(json, errMsg)
     Check Not cfg Is Nothing, "parse ok"
     If cfg Is Nothing Then Exit Sub
-    CheckEq cfg("groups").Count, 2, "nameless and empty groups dropped"
-    CheckEq cfg("groups")(1)("presets").Count, 3, "max 3 presets"
-    CheckEq cfg("groups")(1)("presets")(2)("fontColor"), "", "bad colour blanked"
-    CheckEq cfg("groups")(1)("presets")(3)("fillColor"), "#FFFFFF", "colour upper-cased"
-    CheckEq cfg("groups")(2)("name"), "a (2)", "duplicate name suffixed"
+    CheckEq cfg("groups").Count, 3, "nameless and empty groups dropped"
+    CheckEq cfg("groups")(1)("name"), "B", "group on a button in an old file moves to the front"
+    CheckEq cfg("groups")(2)("presets").Count, 3, "max 3 presets"
+    CheckEq cfg("groups")(2)("presets")(2)("fontColor"), "", "bad colour blanked"
+    CheckEq cfg("groups")(2)("presets")(3)("fillColor"), "#FFFFFF", "colour upper-cased"
+    CheckEq cfg("groups")(3)("name"), "a (2)", "duplicate name suffixed"
     CheckEq cfg("slots").Count, 5, "5 slots"
-    CheckEq cfg("slots")(1), "A", "slot kept"
-    CheckEq cfg("slots")(2), "", "unknown slot cleared"
-    CheckEq cfg("slots")(3), "", "null slot cleared"
+    CheckEq cfg("slots")(1), "B", "slots follow the group order"
+    CheckEq cfg("slots")(2), "A", "slot 2 is the second group"
+    CheckEq cfg("slots")(4), "", "no group for slot 4"
+    CheckEq Store_SlotGroupName(cfg, 3), "a (2)", "quick button 3 is the third group"
+    Check Not Store_IsInSlot(cfg, "missing"), "unknown group is not on a button"
     CheckEq cfg("settings")("shortcuts")(1), "Ctrl+Alt+Q", "shortcut normalised"
     CheckEq cfg("settings")("shortcuts")(2), "", "bad shortcut cleared"
     CheckEq cfg("settings")("shortcuts").Count, 5, "5 shortcuts"
@@ -252,9 +256,11 @@ Private Sub Test_StoreRoundTrip()
     g("presets").Add Store_NewPreset("#,##0 ""EUR""", "#123456")
     cfg("groups").Add g
     Store_RenameGroup cfg, "Numbers", "Plain numbers"
-    CheckEq Store_SlotGroupName(cfg, 1), "Plain numbers", "rename updates slot"
+    CheckEq Store_SlotGroupName(cfg, 1), "Plain numbers", "rename keeps the button"
     Store_DeleteGroup cfg, "Thousands"
-    CheckEq Store_SlotGroupName(cfg, 2), "", "delete clears slot"
+    CheckEq Store_SlotGroupName(cfg, 2), "Percent", "delete moves the next group up"
+    Coll_Swap cfg("groups"), 1, 2
+    CheckEq Store_SlotGroupName(cfg, 1), "Percent", "moving a group moves its button"
     Check Store_Save(cfg, errMsg), "save " & errMsg
 
     Store_Load

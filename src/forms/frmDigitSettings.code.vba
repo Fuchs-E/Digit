@@ -758,45 +758,19 @@ Private Sub imgPick66_Click(): PickIcon 66: End Sub
 ' Quick-button slots and shortcuts
 '------------------------------------------------------------------------------
 
-Private Function SlotBox(ByVal i As Long) As MSForms.ComboBox
-    Set SlotBox = Me.Controls("cboSlot" & i)
-End Function
-
 Private Function KeyBox(ByVal i As Long) As MSForms.TextBox
     Set KeyBox = Me.Controls("txtKey" & i)
 End Function
 
+' Labels the shortcut boxes with the group each quick button now shows (the
+' first five groups in the list).
 Private Sub RefreshSlots()
-    Dim i As Long, cb As MSForms.ComboBox, g As Scripting.Dictionary, cur As String
-    mLoading = True
+    Dim i As Long, nm As String
     For i = 1 To DIGIT_SLOT_COUNT
-        Set cb = SlotBox(i)
-        cb.Clear
-        cb.AddItem "(none)"
-        For Each g In mCfg("groups")
-            cb.AddItem g("name")
-        Next g
-        cur = Store_SlotGroupName(mCfg, i)
-        If Len(cur) = 0 Then
-            cb.ListIndex = 0
-        Else
-            cb.ListIndex = Store_GroupIndex(mCfg, cur)
-        End If
+        nm = Store_SlotGroupName(mCfg, i)
+        If Len(nm) = 0 Then nm = "(no group)"
+        Me.Controls("lblSlot" & i).Caption = i & ": " & nm
     Next i
-    mLoading = False
-    UpdateMoreHint
-End Sub
-
-Private Sub SlotChanged(ByVal i As Long)
-    Dim cb As MSForms.ComboBox
-    If mLoading Then Exit Sub
-    Set cb = SlotBox(i)
-    If cb.ListIndex <= 0 Then
-        Store_SetSlot mCfg, i, ""
-    Else
-        Store_SetSlot mCfg, i, cb.List(cb.ListIndex)
-    End If
-    mDirty = True
     UpdateMoreHint
 End Sub
 
@@ -811,12 +785,6 @@ Private Sub UpdateMoreHint()
     If Len(s) = 0 Then s = "(none)"
     lblHint.Caption = "Under ""More presets"": " & s
 End Sub
-
-Private Sub cboSlot1_Change(): SlotChanged 1: End Sub
-Private Sub cboSlot2_Change(): SlotChanged 2: End Sub
-Private Sub cboSlot3_Change(): SlotChanged 3: End Sub
-Private Sub cboSlot4_Change(): SlotChanged 4: End Sub
-Private Sub cboSlot5_Change(): SlotChanged 5: End Sub
 
 Private Sub KeyChanged(ByVal i As Long)
     Dim t As String

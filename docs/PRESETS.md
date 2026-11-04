@@ -34,7 +34,7 @@ Each time Digit saves the file, it keeps the previous version as `presets.json.b
 | `settings.shortcutsEnabled` | bool | Turns the quick-button keyboard shortcuts on or off. |
 | `settings.shortcuts` | 5 strings | The shortcut for buttons 1 to 5, such as `"Ctrl+Alt+1"`, `"Ctrl+Shift+F5"` or `"Alt+Q"`. Use `""` for none. A shortcut needs Ctrl or Alt, unless it is a function key. |
 | `settings.undoDepth` | number | How many changes Undo Format remembers (1 to 50, default 10). |
-| `slots` | 5 strings | The group name on quick buttons 1 to 5, or `""`. Buttons with no group are hidden. Groups that are not in a slot appear under **More presets**. |
+| `slots` | 5 strings | Written by Digit for reference: the names of the first five groups. **The quick buttons are the first five groups in `groups`, left to right**; the rest appear in the Digit menu. When Digit reads a file, groups named in `slots` move to the front in that order, so files from older versions keep their buttons. |
 | `groups[].name` | string | Must be unique (case does not matter) and not empty. It is shown as the button label. |
 | `groups[].icon` | string | Optional. The picture on the group's quick button and in the Digit menu. Either one of Digit's own icons, written `"digit:<name>"` (for example `"digit:pct_green"`; the names are the files in `src/icons`), or a built-in Office icon name (an `imageMso` name) such as `"PercentStyle"`. `""` or an unknown name shows the button number instead. Pick one in **Settings > Button picture > Choose...**, which shows the pictures themselves, a page at a time. |
 | `groups[].presets` | 1 to 3 objects | The cycle order. |

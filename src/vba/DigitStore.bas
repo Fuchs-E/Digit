@@ -14,7 +14,10 @@ Attribute VB_Name = "DigitStore"
 '   cfg("settings")("shortcutsEnabled")  Boolean
 '   cfg("settings")("shortcuts")   Collection of 5 Strings ("Ctrl+Alt+1" or "")
 '   cfg("settings")("undoDepth")   Long, 1..50
-'   cfg("slots")                   Collection of 5 Strings (group name or "")
+'   cfg("slots")                   Collection of 5 Strings: the names of the first five
+'                                  groups (the quick buttons, left to right). Derived from
+'                                  the group order and kept in the file for older versions;
+'                                  on load, groups named here move to the front in this order.
 '   cfg("groups")                  Collection of Dictionary:
 '       ("name")    String, unique (case-insensitive), non-empty
 '       ("presets") Collection of 1..3 Dictionary:
@@ -146,6 +149,7 @@ End Function
 ' Normalises and saves cfg as the live configuration.
 Public Function Store_Save(ByVal cfg As Scripting.Dictionary, ByRef errMsg As String) As Boolean
     Dim clean As Scripting.Dictionary
+    SyncSlots cfg                               ' the list order is what counts
     Set clean = Store_Normalize(cfg)
     If Store_WriteConfig(clean, errMsg) Then
         Set mCfg = clean
@@ -179,6 +183,7 @@ Fail:
 End Function
 
 Public Function Store_ToJson(ByVal cfg As Scripting.Dictionary) As String
+    SyncSlots cfg
     Store_ToJson = JsonConverter.ConvertToJson(cfg, 2)
 End Function
 
@@ -223,26 +228,28 @@ Public Function Store_GroupIndex(ByVal cfg As Scripting.Dictionary, ByVal groupN
     Next i
 End Function
 
+' The quick buttons are the first five groups, in list order.
 Public Function Store_SlotGroupName(ByVal cfg As Scripting.Dictionary, ByVal slot As Long) As String
     If slot < 1 Or slot > DIGIT_SLOT_COUNT Then Exit Function
-    Store_SlotGroupName = cfg("slots")(slot)
+    If slot > cfg("groups").Count Then Exit Function
+    Store_SlotGroupName = cfg("groups")(slot)("name")
 End Function
-
-Public Sub Store_SetSlot(ByVal cfg As Scripting.Dictionary, ByVal slot As Long, ByVal groupName As String)
-    If slot < 1 Or slot > DIGIT_SLOT_COUNT Then Exit Sub
-    Coll_ReplaceAt cfg("slots"), slot, groupName
-End Sub
 
 ' True when the group is on one of the quick buttons.
 Public Function Store_IsInSlot(ByVal cfg As Scripting.Dictionary, ByVal groupName As String) As Boolean
-    Dim i As Long
-    For i = 1 To DIGIT_SLOT_COUNT
-        If StrComp(cfg("slots")(i), groupName, vbTextCompare) = 0 Then
-            Store_IsInSlot = True
-            Exit Function
-        End If
-    Next i
+    Dim idx As Long
+    idx = Store_GroupIndex(cfg, groupName)
+    Store_IsInSlot = (idx >= 1 And idx <= DIGIT_SLOT_COUNT)
 End Function
+
+' Rewrites cfg("slots") from the group order (before saving or copying).
+Private Sub SyncSlots(ByVal cfg As Scripting.Dictionary)
+    Dim slots As New Collection, i As Long
+    For i = 1 To DIGIT_SLOT_COUNT
+        slots.Add Store_SlotGroupName(cfg, i)
+    Next i
+    Set cfg("slots") = slots
+End Sub
 
 Public Function Store_Shortcut(ByVal cfg As Scripting.Dictionary, ByVal slot As Long) As String
     If slot < 1 Or slot > DIGIT_SLOT_COUNT Then Exit Function
@@ -267,26 +274,22 @@ Public Function Store_UndoDepth(ByVal cfg As Scripting.Dictionary) As Long
     Store_UndoDepth = cfg("settings")("undoDepth")
 End Function
 
-' Renames a group and keeps the quick-button assignments pointing at it.
+' Renames a group (its place in the list, and so on the ribbon, stays).
 Public Sub Store_RenameGroup(ByVal cfg As Scripting.Dictionary, ByVal oldName As String, ByVal newName As String)
-    Dim g As Scripting.Dictionary, i As Long
+    Dim g As Scripting.Dictionary
     Set g = Store_FindGroup(cfg, oldName)
     If g Is Nothing Then Exit Sub
     g("name") = newName
-    For i = 1 To DIGIT_SLOT_COUNT
-        If StrComp(cfg("slots")(i), oldName, vbTextCompare) = 0 Then Store_SetSlot cfg, i, newName
-    Next i
+    SyncSlots cfg
 End Sub
 
-' Deletes a group and clears any quick button that used it.
+' Deletes a group; the groups after it move up a place.
 Public Sub Store_DeleteGroup(ByVal cfg As Scripting.Dictionary, ByVal groupName As String)
-    Dim idx As Long, i As Long
+    Dim idx As Long
     idx = Store_GroupIndex(cfg, groupName)
     If idx = 0 Then Exit Sub
     cfg("groups").Remove idx
-    For i = 1 To DIGIT_SLOT_COUNT
-        If StrComp(cfg("slots")(i), groupName, vbTextCompare) = 0 Then Store_SetSlot cfg, i, ""
-    Next i
+    SyncSlots cfg
 End Sub
 
 Public Function Store_NewGroup(ByVal groupName As String) As Scripting.Dictionary
@@ -457,6 +460,27 @@ Public Function Store_Normalize(ByVal src As Object) As Scripting.Dictionary
             End If
         End If
         slots.Add slotName
+    Next i
+
+    ' Groups on the quick buttons go first, in button order (this is how files
+    ' from before "list order = ribbon order" keep their buttons); then the rest
+    ' in their own order. Afterwards the slots are simply the first five.
+    Dim ordered As New Collection, slotNm As Variant
+    For Each slotNm In slots
+        If Len(slotNm) > 0 Then
+            Set found = FindIn(groups, CStr(slotNm))
+            If Not found Is Nothing Then
+                If FindIn(ordered, CStr(slotNm)) Is Nothing Then ordered.Add found
+            End If
+        End If
+    Next slotNm
+    For Each g In groups
+        If FindIn(ordered, g("name")) Is Nothing Then ordered.Add g
+    Next g
+    Set groups = ordered
+    Set slots = New Collection
+    For i = 1 To DIGIT_SLOT_COUNT
+        If i <= groups.Count Then slots.Add groups(i)("name") Else slots.Add ""
     Next i
 
     ' --- settings

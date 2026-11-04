@@ -10,7 +10,7 @@ Phase 1 (this repository) is a VBA add-in (`Digit.xlam`). Presets are kept in a 
 
 | | |
 |---|---|
-| **Quick buttons** | Up to 5 large icon buttons; hover one to see its group name. Their pictures and names come from the presets file. Slots with no group are hidden. |
+| **Quick buttons** | The first 5 preset groups in Settings, as large icon buttons (reorder them with Move up / Move down); hover one to see its group name. Their pictures and names come from the presets file. Slots with no group are hidden. |
 | **Digit menu** | One button with every group that is not on a quick button, plus Settings, Reload presets, Check for updates and the version. **Undo Format** sits next to it. |
 | **Cycle logic** | The active cell's current format picks the next preset. A format that matches no preset gets preset 1. |
 | **Targeting** | Normal ranges and multi-area selections. A single cell in an Excel table formats the whole table column. A pivot values cell sets the DataField's number format, so it survives refresh. |

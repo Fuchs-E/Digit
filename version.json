@@ -1,4 +1,4 @@
 {
-  "version": "1.1.9",
-  "notes": "Fixes the type mismatch when choosing a button picture, and the black Office icons in the picker: the picker now shows every picture on a white background."
+  "version": "1.2.0",
+  "notes": "The quick buttons are now the first five groups in Settings: use Move up / Move down to reorder the ribbon (your current buttons are kept). Fixes button pictures looking broken after changing them in Settings."
 }

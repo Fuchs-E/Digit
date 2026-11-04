@@ -96,18 +96,17 @@ Public Sub BuildSettingsForm(ByVal codeFile As String)
     AddButton d, "btnIconNone", 120, 298, 68, 22, "Use number"
 
     '--- Quick buttons and shortcuts (bottom)
-    AddLabel d, "lblSlots", 8, 328, 620, 12, "Quick buttons on the ribbon (preset group, then keyboard shortcut)"
+    AddLabel d, "lblSlots", 8, 328, 620, 24, "Quick buttons: the first five groups in the list, left to right " & _
+             "(use Move up / Move down to change them). Keyboard shortcut for each:"
     For i = 1 To 5
         x = 8 + (i - 1) * 125
-        AddLabel d, "lblSlot" & i, x, 344, 120, 12, "Button " & i
-        Set c = AddCtl(d, "Forms.ComboBox.1", "cboSlot" & i, x, 358, 120, 18)
-        c.Style = 2                               ' fmStyleDropDownList
-        Set c = AddCtl(d, "Forms.TextBox.1", "txtKey" & i, x, 380, 120, 18)
+        AddLabel d, "lblSlot" & i, x, 356, 120, 12, i & ":"
+        Set c = AddCtl(d, "Forms.TextBox.1", "txtKey" & i, x, 372, 120, 18)
         c.ControlTipText = "For example Ctrl+Alt+" & i & ". Leave blank for no shortcut."
     Next i
-    Set c = AddCtl(d, "Forms.CheckBox.1", "chkShortcuts", 8, 404, 160, 16)
+    Set c = AddCtl(d, "Forms.CheckBox.1", "chkShortcuts", 8, 400, 160, 16)
     c.Caption = "Enable keyboard shortcuts"
-    AddLabel d, "lblHint", 172, 406, 456, 12, ""
+    AddLabel d, "lblHint", 172, 402, 456, 12, ""
 
     '--- Bottom row
     AddButton d, "btnImport", 8, 438, 70, 24, "Import..."

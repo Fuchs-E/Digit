@@ -60,7 +60,6 @@ Private Declare PtrSafe Sub CopyMemory Lib "kernel32" Alias "RtlMoveMemory" (ByR
 Private Declare PtrSafe Function OleCreatePictureIndirect Lib "oleaut32" (ByRef pictDesc As DIGIT_PICTDESC, ByRef riid As DIGIT_GUID, ByVal fOwn As Long, ByRef ppvObj As IPicture) As Long
 
 Private mToken As LongPtr
-Private mCache As Scripting.Dictionary        ' "name|background" -> IPicture
 Private mExtractedTo As String               ' folder the icons were last written to
 
 ' True for "digit:..." names.
@@ -102,7 +101,6 @@ Public Sub Icons_Extract()
     Dim ws As Worksheet, r As Long, nm As String, errMsg As String
     If StrComp(mExtractedTo, Icons_Folder(), vbTextCompare) = 0 Then Exit Sub
     mExtractedTo = Icons_Folder()
-    Set mCache = Nothing
     On Error GoTo Done
     If Not Store_EnsureFolder(Store_Folder(), errMsg) Then Exit Sub
     If Not Store_EnsureFolder(Icons_Folder(), errMsg) Then Exit Sub
@@ -123,7 +121,7 @@ End Sub
 ' the ribbon); a colour such as &HFFFFFF draws it on that colour (for forms,
 ' which do not show transparency).
 Public Function Icons_Picture(ByVal nm As String, Optional ByVal background As Variant) As IPicture
-    Dim key As String, bmp As LongPtr, hbm As LongPtr, argb As Long, pic As IPicture
+    Dim bmp As LongPtr, hbm As LongPtr, argb As Long, pic As IPicture
     Dim pd As DIGIT_PICTDESC, iid As DIGIT_GUID
 
     If Not Icons_Exists(nm) Then Exit Function
@@ -132,12 +130,9 @@ Public Function Icons_Picture(ByVal nm As String, Optional ByVal background As V
     Else
         argb = &HFF000000 Or RgbToArgb(CLng(background))
     End If
-    key = LCase$(nm) & "|" & argb
-    If mCache Is Nothing Then Set mCache = New Scripting.Dictionary
-    If mCache.Exists(key) Then
-        Set Icons_Picture = mCache(key)
-        Exit Function
-    End If
+    ' No caching: the ribbon takes over a picture it is given, so handing the
+    ' same picture back on the next redraw shows a broken image. A fresh one
+    ' each call costs a file read of a 32x32 PNG.
 
     If Not StartGdiPlus() Then Exit Function
     If GdipCreateBitmapFromFile(StrPtr(IconFile(nm)), bmp) <> 0 Then Exit Function
@@ -156,7 +151,6 @@ Public Function Icons_Picture(ByVal nm As String, Optional ByVal background As V
     iid.Data4(4) = &H0: iid.Data4(5) = &H30: iid.Data4(6) = &HC: iid.Data4(7) = &HAB
     If OleCreatePictureIndirect(pd, iid, 1, pic) <> 0 Then Exit Function
 
-    Set mCache(key) = pic
     Set Icons_Picture = pic
 End Function
 
@@ -267,10 +261,6 @@ Private Sub WriteIfChanged(ByVal path As String, ByRef bytes() As Byte)
     Open path For Binary Access Write As #f
     Put #f, , bytes
     Close #f
-End Sub
-
-Public Sub Icons_ClearCache()
-    Set mCache = Nothing
 End Sub
 
 '------------------------------------------------------------------------------
