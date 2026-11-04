@@ -368,6 +368,20 @@ try {
         Write-Host "    Exported to $formDir"
     }
 
+    Write-Step 'Packing Digit icons'
+    # Each src\icons\<name>.png goes on the hidden sheet: column E = name,
+    # column F = base64. DigitIcons writes them to %APPDATA%\Digit\icons.
+    $iconRow = 0
+    $iconSheet = $wb.Worksheets.Item(1)
+    foreach ($png in @(Get-ChildItem (Join-Path $Root 'src\icons') -Filter '*.png' | Sort-Object Name)) {
+        $iconRow++
+        $b64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes($png.FullName))
+        if ($b64.Length -gt 32000) { throw "$($png.Name) is too large to pack (keep icons small, 32x32)." }
+        $iconSheet.Range("E$iconRow").Value2 = $png.BaseName
+        $iconSheet.Range("F$iconRow").Value2 = $b64
+    }
+    Write-Host "    $iconRow icons"
+
     Write-Step 'Saving add-in'
     # DocumentProperties has no type info, so PowerShell's normal member access returns $null.
     # Go through IDispatch by hand. These only label the add-in in Excel's Add-ins list, so a

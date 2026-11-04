@@ -93,14 +93,31 @@ End Sub
 ' otherwise the button number. Returning a name (not a picture) makes the
 ' ribbon draw that built-in icon.
 Public Sub Digit_GetImage(ByVal control As IRibbonControl, ByRef returnedVal)
-    returnedVal = ButtonIcon(Store_FindGroup(Store_Config(), Store_SlotGroupName(Store_Config(), SlotOf(control))), _
-                             "_" & SlotOf(control))
+    SetImage returnedVal, ButtonIcon(Store_FindGroup(Store_Config(), Store_SlotGroupName(Store_Config(), SlotOf(control))), _
+                                     "_" & SlotOf(control))
+End Sub
+
+' Picture of a group in the Digit menu (only used for Digit's own icons; Office
+' icons go in the menu XML as imageMso).
+Public Sub Digit_GetMenuImage(ByVal control As IRibbonControl, ByRef returnedVal)
+    SetImage returnedVal, ButtonIcon(Store_FindGroup(Store_Config(), control.Tag), "_1")
+End Sub
+
+' A name gives an Office icon; a Digit icon must be handed over as a picture.
+Private Sub SetImage(ByRef returnedVal As Variant, ByVal nm As String)
+    Dim pic As Object
+    If Icons_IsCustom(nm) Then
+        Set pic = Icons_Picture(nm)
+        If Not pic Is Nothing Then Set returnedVal = pic: Exit Sub
+        nm = "_1"
+    End If
+    returnedVal = nm
 End Sub
 
 Private Function ButtonIcon(ByVal g As Scripting.Dictionary, ByVal fallback As String) As String
     Dim nm As String
     nm = Store_GroupIcon(g)
-    If UI_IsOfficeIcon(nm) Then ButtonIcon = nm Else ButtonIcon = fallback
+    If UI_IconExists(nm) Then ButtonIcon = nm Else ButtonIcon = fallback
 End Function
 
 Private Function SlotOf(ByVal control As IRibbonControl) As Long
@@ -151,7 +168,12 @@ End Sub
 Private Function MenuIcon(ByVal g As Scripting.Dictionary) As String
     Dim nm As String
     nm = ButtonIcon(g, "")
-    If Len(nm) > 0 Then MenuIcon = " imageMso=""" & Core_XmlEscape(nm) & """"
+    If Len(nm) = 0 Then Exit Function
+    If Icons_IsCustom(nm) Then
+        MenuIcon = " getImage=""Digit_GetMenuImage"""
+    Else
+        MenuIcon = " imageMso=""" & Core_XmlEscape(nm) & """"
+    End If
 End Function
 
 Public Sub Digit_OnMoreItem(ByVal control As IRibbonControl)

@@ -13,6 +13,8 @@ Option Explicit
 
 Private Const SAMPLE_DEFAULT As Double = 1234567.891
 Private Const ICON_CELLS As Long = 66          ' imgPick1..66, created by DigitFormBuilder
+Private mIconNames As Collection         ' every picture on offer (Digit icons first)
+Private mIconPage As Long
 
 Private mCfg As Scripting.Dictionary     ' working copy
 Private mLoading As Boolean              ' true while the code fills controls
@@ -480,22 +482,65 @@ End Sub
 ' Button picture (Office icon name) of the selected group
 '------------------------------------------------------------------------------
 
-' Fills the picker grid with the suggested icons this Office version has.
+' Collects the pictures on offer; the grid shows them a page at a time.
 Private Sub FillIconSuggestions()
-    Dim nm As Variant, k As Long, cell As MSForms.Image
-    For Each nm In Split(DIGIT_ICON_SUGGESTIONS, ",")
-        If k >= ICON_CELLS Then Exit For
-        If UI_IsOfficeIcon(CStr(nm)) Then
-            k = k + 1
-            Set cell = Me.Controls("imgPick" & k)
-            Set cell.Picture = UI_OfficeIconPicture(CStr(nm))
-            cell.Tag = CStr(nm)
-            cell.ControlTipText = CStr(nm)
+    Set mIconNames = UI_IconCandidates()
+    mIconPage = 0
+End Sub
+
+Private Function IconPageCount() As Long
+    If mIconNames Is Nothing Then Exit Function
+    IconPageCount = (mIconNames.Count + ICON_CELLS - 1) \ ICON_CELLS
+End Function
+
+Private Sub ShowIconPage(ByVal page As Long)
+    Dim k As Long, i As Long, cell As MSForms.Image, n As Long
+    n = IconPageCount()
+    If n = 0 Then n = 1
+    If page < 1 Then page = 1
+    If page > n Then page = n
+    mIconPage = page
+    For k = 1 To ICON_CELLS
+        Set cell = Me.Controls("imgPick" & k)
+        i = (page - 1) * ICON_CELLS + k
+        If i <= mIconNames.Count Then
+            Set cell.Picture = UI_IconPicture(mIconNames(i))
+            cell.Tag = mIconNames(i)
+            cell.ControlTipText = IconTip(mIconNames(i))
+            cell.Visible = True
+        Else
+            Set cell.Picture = Nothing
+            cell.Tag = ""
+            cell.Visible = False
         End If
-    Next nm
-    For k = k + 1 To ICON_CELLS
-        Me.Controls("imgPick" & k).Visible = False
     Next k
+    lblIconPage.Caption = "Page " & page & " of " & n
+    btnIconPrev.Enabled = (page > 1)
+    btnIconNext.Enabled = (page < n)
+    MarkPicked
+End Sub
+
+' Hover text: Digit icons show their short name, Office icons their imageMso name.
+Private Function IconTip(ByVal nm As String) As String
+    If Icons_IsCustom(nm) Then IconTip = "Digit icon: " & Mid$(nm, Len(DIGIT_ICON_PREFIX) + 1) Else IconTip = nm
+End Function
+
+' Page holding the current picture (page 1 when it is not in the list).
+Private Function PageOfIcon(ByVal nm As String) As Long
+    Dim i As Long
+    PageOfIcon = 1
+    If Len(nm) = 0 Then Exit Function
+    For i = 1 To mIconNames.Count
+        If StrComp(mIconNames(i), nm, vbTextCompare) = 0 Then PageOfIcon = (i - 1) \ ICON_CELLS + 1: Exit Function
+    Next i
+End Function
+
+Private Sub btnIconPrev_Click()
+    ShowIconPage mIconPage - 1
+End Sub
+
+Private Sub btnIconNext_Click()
+    ShowIconPage mIconPage + 1
 End Sub
 
 Private Sub LoadIcon()
@@ -523,7 +568,7 @@ End Sub
 
 Private Sub btnIconPick_Click()
     If CurGroup() Is Nothing Then Exit Sub
-    MarkPicked
+    ShowIconPage PageOfIcon(Trim$(txtIcon.Text))
     fraIcons.Visible = True
     fraIcons.ZOrder 0
 End Sub
@@ -576,14 +621,14 @@ Private Sub ShowIcon()
         Set imgIcon.Picture = Nothing
         txtIcon.ForeColor = vbWindowText
         imgIcon.ControlTipText = "No picture: the ribbon shows the button number. Click to choose one."
-    ElseIf UI_IsOfficeIcon(nm) Then
-        Set imgIcon.Picture = UI_OfficeIconPicture(nm)
+    ElseIf UI_IconExists(nm) Then
+        Set imgIcon.Picture = UI_IconPicture(nm)
         txtIcon.ForeColor = vbWindowText
         imgIcon.ControlTipText = nm & " (click to change)"
     Else
         Set imgIcon.Picture = Nothing
         txtIcon.ForeColor = vbRed
-        imgIcon.ControlTipText = "Office has no icon called """ & nm & """."
+        imgIcon.ControlTipText = "There is no icon called """ & nm & """."
     End If
 End Sub
 
@@ -760,9 +805,9 @@ Private Function ValidateAll(ByRef msg As String) As Boolean
 
     For gi = 1 To mCfg("groups").Count
         Set g = mCfg("groups")(gi)
-        If Len(Store_GroupIcon(g)) > 0 And Not UI_IsOfficeIcon(Store_GroupIcon(g)) Then
+        If Len(Store_GroupIcon(g)) > 0 And Not UI_IconExists(Store_GroupIcon(g)) Then
             RefreshGroups gi
-            msg = "The button picture for """ & g("name") & """ (""" & Store_GroupIcon(g) & """) is not an Office icon name." & _
+            msg = "The button picture for """ & g("name") & """ (""" & Store_GroupIcon(g) & """) is not a known icon." & _
                   vbCrLf & vbCrLf & "Pick one from the list, or leave it blank to show the button number."
             Exit Function
         End If

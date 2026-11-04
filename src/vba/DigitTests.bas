@@ -46,6 +46,7 @@ Public Function RunAllTests(Optional ByVal tempFolder As String = "") As String
     Test_TableColumn
     Test_ProtectedSheet
     Test_PivotDataField
+    Test_Icons
     Test_SettingsForm
     GoTo Finish
 
@@ -170,16 +171,28 @@ Private Sub Test_Versions()
     CheckEq Core_CompareVersions("", "0.0.1"), -1, "version blank"
 End Sub
 
+' Digit's own icons are packed in the add-in, unpacked to the (test) presets
+' folder and turned into pictures; Office icons are offered after them.
+Private Sub Test_Icons()
+    Dim c As Collection
+    Check Icons_List().Count >= 36, "digit icons packed in the add-in"
+    Check Icons_Exists("digit:pct_green"), "digit icon unpacked"
+    Check Not Icons_Exists("digit:no_such_icon"), "unknown digit icon"
+    Check Not Icons_Picture("digit:pct_green") Is Nothing, "digit icon picture for the ribbon"
+    Check Not Icons_Picture("digit:pct_green", &HFFFFFF) Is Nothing, "digit icon picture for forms"
+    Check UI_IconExists("digit:dec1_blue"), "UI knows digit icons"
+    Check Not UI_IconExists("NoSuchOfficeIcon123"), "unknown office icon"
+    Set c = UI_IconCandidates()
+    Check c.Count > Icons_List().Count + 50, "picker offers office icons too"
+    CheckEq Left$(c(1), 6), "digit:", "digit icons come first"
+End Sub
+
 ' Loads the Settings window without showing it: runs its start-up code
 ' (presets, format list, icon grid) so errors there fail the build.
 Private Sub Test_SettingsForm()
-    Dim f As Object, n As Long, k As Long
+    Dim f As Object
     Set f = New frmDigitSettings
     Check f.Controls("lstGroups").ListCount > 0, "settings lists the preset groups"
-    For k = 1 To 66
-        If f.Controls("imgPick" & k).Visible Then n = n + 1
-    Next k
-    Check n > 0, "settings icon grid has pictures"
     Check Not f.Controls("fraIcons").Visible, "icon picker starts closed"
     Unload f
 End Sub

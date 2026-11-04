@@ -38,10 +38,12 @@ This builds `dist\Digit.xlam`, runs the self-tests in a hidden Excel, and instal
 src/
   ribbon/customUI14.xml           Ribbon definition (callbacks in DigitRibbon.bas)
   ribbon/images/                  Custom ribbon pictures (digitIcon.png), packed in by the build
+  icons/                          Digit's number icons for quick buttons (and make_icons.py)
   vba/
     DigitCore.bas                 Pure logic: cycle rules, colours, shortcuts (no Excel objects)
     DigitFormat.bas               Engine: targeting, choosing the next preset, applying (no UI)
     DigitUndo.bas                 Undo snapshots and history (no UI)
+    DigitIcons.bas                Digit's own button pictures: unpacks them and loads PNGs (GDI+)
     DigitUpdate.bas               Checks the release branch for updates and starts the installer (no UI)
     DigitStore.bas                presets.json: load, save, defaults, validation
     DigitRibbon.bas               Ribbon callbacks

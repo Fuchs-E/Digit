@@ -122,17 +122,21 @@ Public Sub BuildSettingsForm(ByVal codeFile As String)
 
     '--- Picture picker: covers the preset editor while open
     Dim fra As Object, k As Long
-    Set fra = AddCtl(d, "Forms.Frame.1", "fraIcons", 196, 4, 436, 276)
+    Set fra = AddCtl(d, "Forms.Frame.1", "fraIcons", 196, 4, 436, 316)
     fra.Caption = "Choose a button picture"
     fra.Visible = False
     For k = 1 To 66
         Set c = AddCtl(fra, "Forms.Image.1", "imgPick" & k, 8 + ((k - 1) Mod 11) * 38, 6 + ((k - 1) \ 11) * 38, 36, 36)
         IconCell c
     Next k
-    AddLabel fra, "lblIconName", 8, 6 + 6 * 38 + 4, 130, 12, "Or type an Office icon name:"
-    Set c = AddCtl(fra, "Forms.TextBox.1", "txtIcon", 140, 6 + 6 * 38, 150, 18)
-    c.ControlTipText = "Any Office icon (imageMso) name. Leave blank to show the button number."
-    AddButton fra, "btnIconClose", 350, 6 + 6 * 38 - 2, 74, 22, "Close"
+    AddButton fra, "btnIconPrev", 8, 240, 74, 22, "< Previous"
+    Set c = AddLabel(fra, "lblIconPage", 88, 245, 120, 12, "")
+    c.TextAlign = 2
+    AddButton fra, "btnIconNext", 214, 240, 74, 22, "Next >"
+    AddLabel fra, "lblIconName", 8, 274, 130, 12, "Or type an icon name:"
+    Set c = AddCtl(fra, "Forms.TextBox.1", "txtIcon", 120, 270, 168, 18)
+    c.ControlTipText = "An Office icon (imageMso) name, or digit:<name> for Digit's own. Blank = the button number."
+    AddButton fra, "btnIconClose", 350, 268, 74, 22, "Close"
 
     '--- Code
     With comp.CodeModule

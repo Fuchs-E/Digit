@@ -26,19 +26,6 @@ Private Const CC_ANYCOLOR As Long = &H100
 
 Private mCustomColors(0 To 15) As Long
 
-' Icons offered in the settings window. Only names this Office version knows
-' are shown, so an unknown name here is harmless.
-Public Const DIGIT_ICON_SUGGESTIONS As String = _
-    "_1,_2,_3,_4,_5,_6,_7,_8,_9,_0,PercentStyle,CommaStyle,AccountingFormat,AccountingFormatMenu," & _
-    "CurrencySymbol,NumberFormatGallery,NumberFormatsDialog,DecimalsIncrease,DecimalsDecrease,FormatNumberDefault," & _
-    "FormatCellsDialog,DateAndTimeInsert,CalendarInsert,DateTimeInsert,AutoSum,FunctionWizard,Calculator," & _
-    "FormulaMoreFunctionsMenu,SymbolInsert,EquationInsertNew,FontColorPicker,CellFillColorPicker," & _
-    "FillColor,Bold,Italic,Underline,FontSizeIncrease,FontSizeDecrease,BordersMenu,BorderBottom,ConditionalFormattingMenu," & _
-    "CellStylesGallery,FormatPainter,FormatAsTableGallery,TableInsert,PivotTableInsert,ChartInsert," & _
-    "ChartTypeColumnInsertGallery,ChartTypeLineInsertGallery,ChartTypePieInsertGallery,SortAscendingExcel," & _
-    "SortDescendingExcel,Filter,GroupSort,HappyFace,StarRatingFull,FlagRed,FlagGreen,FlagYellow,AcceptInvitation," & _
-    "DeclineInvitation,Help,Info,ShapeStar,ShapeHeart,ShapeSmileyFace,ShapeRectangle,ShapeOval,ShapeRightArrow," & _
-    "A,B,C,D,E,F,G,H,K,M,N,P,T,X"
 Private mCustomInit As Boolean
 
 ' Shows the Windows colour dialog. Returns the chosen colour (BGR Long, as used
@@ -84,6 +71,97 @@ Public Sub UI_OpenFolder(ByVal folder As String)
     On Error Resume Next
     Shell "explorer.exe """ & folder & """", vbNormalFocus
 End Sub
+
+'------------------------------------------------------------------------------
+' Pictures for quick buttons: Digit's own icons ("digit:...") and built-in
+' Office icons (imageMso names).
+'------------------------------------------------------------------------------
+
+' Every picture offered in the settings window, Digit's own first. Office icons
+' this version of Excel does not have are left out, so the list below can be
+' generous.
+Public Function UI_IconCandidates() As Collection
+    Dim c As New Collection, nm As Variant, s As String
+    For Each nm In Icons_List()
+        c.Add CStr(nm)
+    Next nm
+    s = s & "_1,_2,_3,_4,_5,_6,_7,_8,_9,_0,A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,PercentStyle,CommaStyle,"
+    s = s & "AccountingFormat,AccountingFormatMenu,CurrencySymbol,NumberFormatGallery,NumberFormatsDialog,DecimalsIncrease,"
+    s = s & "DecimalsDecrease,FormatNumberDefault,FormatCellsDialog,DateAndTimeInsert,CalendarInsert,DateTimeInsert,"
+    s = s & "AutoSum,AutoSumMenu,FunctionWizard,Calculator,FormulaMoreFunctionsMenu,FormulaFinancialInsertGallery,"
+    s = s & "FormulaLogicalInsertGallery,FormulaTextInsertGallery,FormulaDateTimeInsertGallery,FormulaLookupReferenceInsertGallery,"
+    s = s & "FormulaMathTrigInsertGallery,NameManager,NameDefine,FormulaEvaluate,TraceDependents,TracePrecedents,"
+    s = s & "ShowFormulas,CalculateNow,CalculateSheet,SymbolInsert,EquationInsertNew,EquationProfessional,FontColorPicker,"
+    s = s & "CellFillColorPicker,FillColor,Bold,Italic,Underline,Strikethrough,FontSizeIncrease,FontSizeDecrease,"
+    s = s & "Superscript,Subscript,ChangeCase,ClearFormats,Clear,ClearAll,ClearMenu,ClearContents,BordersMenu,"
+    s = s & "BorderBottom,BorderTop,BorderLeft,BorderRight,BorderAll,BorderOutside,BorderThickBox,BorderDoubleBottom,"
+    s = s & "BorderNone,AlignLeft,AlignCenter,AlignRight,AlignTop,AlignMiddle,AlignBottom,AlignJustify,IndentIncrease,"
+    s = s & "IndentDecrease,WrapText,MergeCenter,MergeCellsMenu,MergeCells,UnmergeCells,OrientationMenu,TextDirectionMenu,"
+    s = s & "ConditionalFormattingMenu,ConditionalFormattingHighlightCellsMenu,ConditionalFormattingTopBottomMenu,"
+    s = s & "ConditionalFormattingDataBarsGallery,ConditionalFormattingColorScalesGallery,ConditionalFormattingIconSetsGallery,"
+    s = s & "ConditionalFormattingClearMenu,CellStylesGallery,FormatPainter,FormatAsTableGallery,TableStyleClear,"
+    s = s & "TableInsert,PivotTableInsert,PivotChartInsert,PivotTableFieldList,PivotTableRefresh,RefreshAll,Refresh,"
+    s = s & "ChartInsert,ChartTypeColumnInsertGallery,ChartTypeLineInsertGallery,ChartTypePieInsertGallery,ChartTypeBarInsertGallery,"
+    s = s & "ChartTypeAreaInsertGallery,ChartTypeXYScatterInsertGallery,ChartTypeOtherInsertGallery,SparklineLineInsert,"
+    s = s & "SparklineColumnInsert,SparklineWinLossInsert,SortAscendingExcel,SortDescendingExcel,SortCustomExcel,"
+    s = s & "Filter,FilterClearAllFilters,FilterReapply,AdvancedFilterDialog,GroupSort,Group,Ungroup,OutlineSubtotals,"
+    s = s & "OutlineGroup,OutlineUngroup,OutlineShowDetail,OutlineHideDetail,DataValidation,DataValidationMenu,"
+    s = s & "RemoveDuplicates,TextToColumns,ConsolidateData,WhatIfAnalysisMenu,GoalSeek,DataTable,ConnectionsDialog,"
+    s = s & "GetExternalDataFromText,GetExternalDataFromWeb,GetExternalDataFromAccess,SheetInsert,SheetDelete,"
+    s = s & "SheetRowsInsert,SheetColumnsInsert,SheetRowsDelete,SheetColumnsDelete,RowHeight,ColumnWidth,ColumnsHide,"
+    s = s & "RowsHide,ColumnsUnhide,RowsUnhide,FreezePanes,FreezeTopRow,FreezeFirstColumn,SplitWindow,ViewGridlinesToggleExcel,"
+    s = s & "ZoomDialog,Zoom100,ZoomToSelection,WindowNew,WindowsArrangeAll,WindowSwitchWindowsMenuExcel,SheetProtect,"
+    s = s & "ProtectWorkbook,AllowUsersToEditRanges,ReviewProtectWorkbook,ReviewShareWorkbook,ReviewNewComment,"
+    s = s & "ReviewEditComment,ReviewDeleteComment,ReviewShowAllComments,TrackChanges,SpellingAndGrammar,Spelling,"
+    s = s & "Thesaurus,Research,TranslationPane,FileSave,FileSaveAs,FileOpen,FileNew,FilePrint,FilePrintPreview,"
+    s = s & "FilePrintQuick,FileClose,FileSendAsAttachment,FileProperties,Copy,Cut,Paste,PasteValues,PasteFormulas,"
+    s = s & "PasteFormatting,PasteSpecialDialog,PasteLink,PasteAsPicture,PasteTranspose,Undo,Redo,Find,FindDialog,"
+    s = s & "Replace,GoTo,GoToSpecial,SelectAll,SelectCurrentRegion,HyperlinkInsert,HyperlinkRemove,BookmarkInsert,"
+    s = s & "PictureInsertFromFile,ClipArtInsert,ShapesInsertGallery,SmartArtInsert,TextBoxInsert,WordArtInsertDialog,"
+    s = s & "HeaderFooterInsert,ObjectInsert,ScreenshotInsertGallery,PageSetupDialog,PageOrientationGallery,PageSizeGallery,"
+    s = s & "PrintAreaMenu,PrintTitles,PageBreakInsertOrRemove,ShapeStar,ShapeHeart,ShapeSmileyFace,ShapeRectangle,"
+    s = s & "ShapeRoundedRectangle,ShapeOval,ShapeRightArrow,ShapeLeftArrow,ShapeUpArrow,ShapeDownArrow,ShapeLightningBolt,"
+    s = s & "ShapeSun,ShapeMoon,ShapeCloud,ShapeDiamond,ShapeTriangle,ShapeCross,HappyFace,StarRatingFull,StarRatingHalf,"
+    s = s & "StarRatingEmpty,FlagRed,FlagGreen,FlagYellow,FlagBlue,FlagPurple,FlagOrange,FlagCompleted,AcceptInvitation,"
+    s = s & "DeclineInvitation,TentativeAcceptInvitation,Help,Info,Tip,Lightbulb,Lock,Unlock,Key,Security,Shield,"
+    s = s & "WarningIcon,ErrorIcon,HighImportance,LowImportance,ImportanceHigh,ImportanceLow,Pushpin,PinItem,CreateMailRule,"
+    s = s & "NewMailMessage,MailMergeStart,AddressBook,Calendar,CalendarMonthView,CalendarWeekView,CalendarDayView,"
+    s = s & "Contacts,Tasks,Notes,Journal,FolderNew,FolderOpen,OpenFolder,Folder,FolderProperties,ArchiveFolder,"
+    s = s & "DatabaseQueryNew,DatabaseRelationships,DatabaseSqlServer,CreateTable,CreateQuery,CreateForm,CreateReport,"
+    s = s & "GroupMacros,MacroPlay,MacroRecord,MacroSecurity,VisualBasic,ControlsGallery,DesignMode,PropertySheet,"
+    s = s & "ViewCode,AddInManager,ComAddInsDialog,XmlSource,OfficeExtensionsGallery,Options,MasterViewClose,DiagramTargetInsertClassic,"
+    s = s & "DiagramRadialInsertClassic,DiagramCycleInsertClassic,DiagramPyramidInsertClassic,ObjectAlignLeft,"
+    s = s & "ObjectAlignCenterHorizontal,ObjectAlignRight,ObjectBringToFront,ObjectSendToBack,ObjectsGroup,ObjectRotateFree,"
+    s = s & "ObjectFlipHorizontal,ObjectFlipVertical,ObjectRotateRight90,ObjectRotateLeft90,GridSettings,ViewRulerPowerPoint,"
+    s = s & "ViewDraftView,ViewPrintLayoutView,ViewFullScreenView,ViewPageBreakPreviewView,ViewNormalViewExcel,"
+    s = s & "ViewPageLayoutView,SlideNew,SlideShowFromBeginning,AnimationCustom,TransitionsGallery,RecordSoundInsert,"
+    s = s & "MovieInsert,MediaInsert,AudioInsert,ChartRefresh,DataRefreshAll,ListMacros,TableDesign,DrawTable,"
+    s = s & "TableAutoFormat,TableRowsInsertAboveExcel,TableColumnsInsertLeftExcel,ExportToPdf,FileSaveAsPdfOrXps,"
+    s = s & "PublishAsPdfOrXps,FileSendMenu,ShareWorkbook,EmailAsPdf,ArrowLeft,ArrowRight,ArrowUp,ArrowDown,NextPage,"
+    s = s & "PreviousPage,GoLeft,GoRight,Up,Down,MoveUp,MoveDown,CheckBox,CheckBoxInsert,OptionButton,ComboBox,"
+    s = s & "ListBox,SpinButton,ScrollBar,ButtonInsert,LabelInsert,OutlineDemote,OutlinePromote,Bullets,Numbering,"
+    s = s & "MultilevelListGallery,LineSpacingMenu,ParagraphMarks,"
+    For Each nm In Split(s, ",")
+        If Len(nm) > 0 Then
+            If UI_IsOfficeIcon(CStr(nm)) Then c.Add CStr(nm)
+        End If
+    Next nm
+    Set UI_IconCandidates = c
+End Function
+
+' True for a Digit icon that exists or an Office icon this Excel knows.
+Public Function UI_IconExists(ByVal name As String) As Boolean
+    If Icons_IsCustom(name) Then UI_IconExists = Icons_Exists(name) Else UI_IconExists = UI_IsOfficeIcon(name)
+End Function
+
+' 32x32 picture for the settings window (drawn on white), or Nothing.
+Public Function UI_IconPicture(ByVal name As String) As Object
+    If Icons_IsCustom(name) Then
+        Set UI_IconPicture = Icons_Picture(name, &HFFFFFF)
+    Else
+        Set UI_IconPicture = UI_OfficeIconPicture(name)
+    End If
+End Function
 
 '------------------------------------------------------------------------------
 ' Office icons (imageMso names)
