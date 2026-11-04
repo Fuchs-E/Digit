@@ -159,7 +159,7 @@ Public Function UI_IconPicture(ByVal name As String) As Object
     If Icons_IsCustom(name) Then
         Set UI_IconPicture = Icons_Picture(name, &HFFFFFF)
     Else
-        Set UI_IconPicture = UI_OfficeIconPicture(name)
+        Set UI_IconPicture = Icons_Flatten(UI_OfficeIconPicture(name), &HFFFFFF)
     End If
 End Function
 

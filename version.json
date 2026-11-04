@@ -1,4 +1,4 @@
 {
-  "version": "1.1.7",
-  "notes": "Many more button pictures: 19 Digit number icons (#, 0, 0.0, #,0, K, M, $, %, dates and more) in green and blue, plus about 400 Office icons. The picker in Settings now shows them a page at a time."
+  "version": "1.1.8",
+  "notes": "Office icons in the picture picker now show on white instead of black. If the picker hits an error it now shows a message naming the step, instead of stopping in the VBA editor."
 }

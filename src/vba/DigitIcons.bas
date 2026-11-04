@@ -39,6 +39,36 @@ Private Declare PtrSafe Function GdiplusStartup Lib "gdiplus" (ByRef token As Lo
 Private Declare PtrSafe Function GdipCreateBitmapFromFile Lib "gdiplus" (ByVal filename As LongPtr, ByRef bitmap As LongPtr) As Long
 Private Declare PtrSafe Function GdipCreateHBITMAPFromBitmap Lib "gdiplus" (ByVal bitmap As LongPtr, ByRef hbmReturn As LongPtr, ByVal background As Long) As Long
 Private Declare PtrSafe Function GdipDisposeImage Lib "gdiplus" (ByVal image As LongPtr) As Long
+Private Type DIGIT_BITMAP
+    bmType As Long
+    bmWidth As Long
+    bmHeight As Long
+    bmWidthBytes As Long
+    bmPlanes As Integer
+    bmBitsPixel As Integer
+    bmBits As LongPtr
+End Type
+
+Private Type DIGIT_BITMAPINFOHEADER
+    biSize As Long
+    biWidth As Long
+    biHeight As Long
+    biPlanes As Integer
+    biBitCount As Integer
+    biCompression As Long
+    biSizeImage As Long
+    biXPelsPerMeter As Long
+    biYPelsPerMeter As Long
+    biClrUsed As Long
+    biClrImportant As Long
+End Type
+
+Private Declare PtrSafe Function GetObjectW Lib "gdi32" (ByVal hObj As LongPtr, ByVal cb As Long, ByRef pv As Any) As Long
+Private Declare PtrSafe Function GetDIBits Lib "gdi32" (ByVal hdc As LongPtr, ByVal hbm As LongPtr, ByVal uStart As Long, ByVal cLines As Long, ByRef lpvBits As Any, ByRef lpbmi As DIGIT_BITMAPINFOHEADER, ByVal usage As Long) As Long
+Private Declare PtrSafe Function SetDIBits Lib "gdi32" (ByVal hdc As LongPtr, ByVal hbm As LongPtr, ByVal uStart As Long, ByVal cLines As Long, ByRef lpvBits As Any, ByRef lpbmi As DIGIT_BITMAPINFOHEADER, ByVal usage As Long) As Long
+Private Declare PtrSafe Function CreateCompatibleBitmap Lib "gdi32" (ByVal hdc As LongPtr, ByVal cx As Long, ByVal cy As Long) As LongPtr
+Private Declare PtrSafe Function GetDC Lib "user32" (ByVal hwnd As LongPtr) As LongPtr
+Private Declare PtrSafe Function ReleaseDC Lib "user32" (ByVal hwnd As LongPtr, ByVal hdc As LongPtr) As Long
 Private Declare PtrSafe Function OleCreatePictureIndirect Lib "oleaut32" (ByRef pictDesc As DIGIT_PICTDESC, ByRef riid As DIGIT_GUID, ByVal fOwn As Long, ByRef ppvObj As IPicture) As Long
 
 Private mToken As LongPtr
@@ -145,6 +175,67 @@ Public Function Icons_Picture(ByVal nm As String, Optional ByVal background As V
 
     Set mCache(key) = pic
     Set Icons_Picture = pic
+End Function
+
+' A copy of pic (a 32-bit picture with transparency, such as GetImageMso
+' returns) blended onto a solid colour. UserForm Image controls ignore
+' transparency and show those areas black. Returns pic itself when it has no
+' transparency or cannot be read.
+Public Function Icons_Flatten(ByVal pic As Object, ByVal bgColor As Long) As Object
+    Dim bm As DIGIT_BITMAP, bi As DIGIT_BITMAPINFOHEADER, hdc As LongPtr, hbm As LongPtr, src As LongPtr
+    Dim px() As Long, i As Long, n As Long, v As Long, a As Long, r As Long, g As Long, b As Long
+    Dim bgR As Long, bgG As Long, bgB As Long, anyAlpha As Boolean
+    Dim pd As DIGIT_PICTDESC, iid As DIGIT_GUID, out As IPicture
+
+    Set Icons_Flatten = pic
+    If pic Is Nothing Then Exit Function
+    On Error GoTo Done
+    src = CLngPtr(pic.Handle)
+    If GetObjectW(src, LenB(bm), bm) = 0 Then Exit Function
+    If bm.bmBitsPixel <> 32 Or bm.bmWidth <= 0 Or bm.bmHeight <= 0 Then Exit Function
+
+    bi.biSize = LenB(bi)
+    bi.biWidth = bm.bmWidth
+    bi.biHeight = -bm.bmHeight                  ' top-down
+    bi.biPlanes = 1
+    bi.biBitCount = 32
+    n = bm.bmWidth * bm.bmHeight
+    ReDim px(0 To n - 1)
+    hdc = GetDC(0)
+    If GetDIBits(hdc, src, 0, bm.bmHeight, px(0), bi, 0) = 0 Then ReleaseDC 0, hdc: Exit Function
+
+    For i = 0 To n - 1
+        If (px(i) And &HFF000000) <> 0 Then anyAlpha = True: Exit For
+    Next i
+    If Not anyAlpha Then ReleaseDC 0, hdc: Exit Function
+
+    bgR = bgColor And &HFF&: bgG = (bgColor \ &H100&) And &HFF&: bgB = (bgColor \ &H10000) And &HFF&
+    For i = 0 To n - 1
+        v = px(i)
+        a = (v And &H7F000000) \ &H1000000
+        If v < 0 Then a = a Or &H80&
+        b = v And &HFF&: g = (v \ &H100&) And &HFF&: r = (v And &HFF0000) \ &H10000
+        ' Colours are premultiplied by alpha: add the background where it shows.
+        r = r + ((255 - a) * bgR) \ 255: If r > 255 Then r = 255
+        g = g + ((255 - a) * bgG) \ 255: If g > 255 Then g = 255
+        b = b + ((255 - a) * bgB) \ 255: If b > 255 Then b = 255
+        px(i) = b Or (g * &H100&) Or (r * &H10000)
+    Next i
+
+    hbm = CreateCompatibleBitmap(hdc, bm.bmWidth, bm.bmHeight)
+    If hbm = 0 Then ReleaseDC 0, hdc: Exit Function
+    SetDIBits hdc, hbm, 0, bm.bmHeight, px(0), bi, 0
+    ReleaseDC 0, hdc
+
+    pd.cbSizeofstruct = LenB(pd)
+    pd.picType = 1
+    pd.hImage = hbm
+    iid.Data1 = &H7BF80980: iid.Data2 = &HBF32: iid.Data3 = &H101A
+    iid.Data4(0) = &H8B: iid.Data4(1) = &HBB: iid.Data4(2) = &H0: iid.Data4(3) = &HAA
+    iid.Data4(4) = &H0: iid.Data4(5) = &H30: iid.Data4(6) = &HC: iid.Data4(7) = &HAB
+    If OleCreatePictureIndirect(pd, iid, 1, out) <> 0 Then Exit Function
+    Set Icons_Flatten = out
+Done:
 End Function
 
 Public Sub Icons_ClearCache()

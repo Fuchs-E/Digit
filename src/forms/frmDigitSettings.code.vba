@@ -495,6 +495,7 @@ End Function
 
 Private Sub ShowIconPage(ByVal page As Long)
     Dim k As Long, i As Long, cell As MSForms.Image, n As Long
+    On Error GoTo Fail
     n = IconPageCount()
     If n = 0 Then n = 1
     If page < 1 Then page = 1
@@ -518,6 +519,9 @@ Private Sub ShowIconPage(ByVal page As Long)
     btnIconPrev.Enabled = (page > 1)
     btnIconNext.Enabled = (page < n)
     MarkPicked
+    Exit Sub
+Fail:
+    PickerError "ShowIconPage"
 End Sub
 
 ' Hover text: Digit icons show their short name, Office icons their imageMso name.
@@ -536,15 +540,24 @@ Private Function PageOfIcon(ByVal nm As String) As Long
 End Function
 
 Private Sub btnIconPrev_Click()
+    On Error GoTo Fail
     ShowIconPage mIconPage - 1
+    Exit Sub
+Fail:
+    PickerError "btnIconPrev_Click"
 End Sub
 
 Private Sub btnIconNext_Click()
+    On Error GoTo Fail
     ShowIconPage mIconPage + 1
+    Exit Sub
+Fail:
+    PickerError "btnIconNext_Click"
 End Sub
 
 Private Sub LoadIcon()
     Dim g As Scripting.Dictionary
+    On Error GoTo Fail
     Set g = CurGroup()
     mLoading = True
     txtIcon.Text = Store_GroupIcon(g)
@@ -552,10 +565,14 @@ Private Sub LoadIcon()
     btnIconPick.Enabled = Not g Is Nothing
     btnIconNone.Enabled = Not g Is Nothing
     ShowIcon
+    Exit Sub
+Fail:
+    PickerError "LoadIcon"
 End Sub
 
 Private Sub SetIcon(ByVal nm As String)
     Dim g As Scripting.Dictionary
+    On Error GoTo Fail
     Set g = CurGroup()
     If g Is Nothing Then Exit Sub
     g("icon") = Trim$(nm)
@@ -564,13 +581,20 @@ Private Sub SetIcon(ByVal nm As String)
     txtIcon.Text = Trim$(nm)
     mLoading = False
     ShowIcon
+    Exit Sub
+Fail:
+    PickerError "SetIcon"
 End Sub
 
 Private Sub btnIconPick_Click()
+    On Error GoTo Fail
     If CurGroup() Is Nothing Then Exit Sub
     ShowIconPage PageOfIcon(Trim$(txtIcon.Text))
     fraIcons.Visible = True
     fraIcons.ZOrder 0
+    Exit Sub
+Fail:
+    PickerError "btnIconPick_Click"
 End Sub
 
 Private Sub imgIcon_Click()
@@ -578,7 +602,11 @@ Private Sub imgIcon_Click()
 End Sub
 
 Private Sub btnIconNone_Click()
+    On Error GoTo Fail
     SetIcon ""
+    Exit Sub
+Fail:
+    PickerError "btnIconNone_Click"
 End Sub
 
 Private Sub btnIconClose_Click()
@@ -586,19 +614,39 @@ Private Sub btnIconClose_Click()
 End Sub
 
 Private Sub PickIcon(ByVal k As Long)
+    On Error GoTo Fail
     SetIcon Me.Controls("imgPick" & k).Tag
     fraIcons.Visible = False
+    Exit Sub
+Fail:
+    PickerError "PickIcon"
 End Sub
 
 Private Sub txtIcon_Change()
+    On Error GoTo Fail
     If mLoading Then Exit Sub
     SetIcon txtIcon.Text
     MarkPicked
+    Exit Sub
+Fail:
+    PickerError "txtIcon_Change"
+End Sub
+
+' Shows where the picture picker failed instead of stopping in the VBA editor.
+Private Sub PickerError(ByVal where As String)
+    Dim n As Long, d As String
+    n = Err.Number: d = Err.Description
+    On Error Resume Next
+    mLoading = False
+    MsgBox "Digit could not update the button picture (" & where & ")." & vbCrLf & vbCrLf & _
+           d & " (error " & n & ")" & vbCrLf & vbCrLf & "Please send this message to whoever maintains Digit.", _
+           vbExclamation, DIGIT_TITLE
 End Sub
 
 ' Frames the current picture in the grid.
 Private Sub MarkPicked()
     Dim k As Long, cell As MSForms.Image
+    On Error GoTo Fail
     For k = 1 To ICON_CELLS
         Set cell = Me.Controls("imgPick" & k)
         If cell.Visible Then
@@ -611,11 +659,15 @@ Private Sub MarkPicked()
             End If
         End If
     Next k
+    Exit Sub
+Fail:
+    PickerError "MarkPicked"
 End Sub
 
 ' Preview of the picture; a name Office does not know shows in red.
 Private Sub ShowIcon()
     Dim nm As String
+    On Error GoTo Fail
     nm = Trim$(txtIcon.Text)
     If Len(nm) = 0 Then
         Set imgIcon.Picture = Nothing
@@ -630,6 +682,9 @@ Private Sub ShowIcon()
         txtIcon.ForeColor = vbRed
         imgIcon.ControlTipText = "There is no icon called """ & nm & """."
     End If
+    Exit Sub
+Fail:
+    PickerError "ShowIcon"
 End Sub
 
 Private Sub imgPick1_Click(): PickIcon 1: End Sub
