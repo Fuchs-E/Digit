@@ -151,14 +151,16 @@ Private Function SnapRange(ByVal r As Range, ByVal incFont As Boolean, ByVal inc
         Exit Function
     End If
 
+    ' Second half starts from its own first cell. r.Offset(...) would shift the
+    ' whole range first, which runs off the sheet for entire rows or columns.
     If colsN > 1 Then
         half = colsN \ 2
         If Not SnapRange(r.Resize(rowsN, half), incFont, incFill, blocks) Then Exit Function
-        SnapRange = SnapRange(r.Offset(0, half).Resize(rowsN, colsN - half), incFont, incFill, blocks)
+        SnapRange = SnapRange(r.Cells(1, half + 1).Resize(rowsN, colsN - half), incFont, incFill, blocks)
     Else
         half = rowsN \ 2
         If Not SnapRange(r.Resize(half, colsN), incFont, incFill, blocks) Then Exit Function
-        SnapRange = SnapRange(r.Offset(half, 0).Resize(rowsN - half, colsN), incFont, incFill, blocks)
+        SnapRange = SnapRange(r.Cells(half + 1, 1).Resize(rowsN - half, colsN), incFont, incFill, blocks)
     End If
 End Function
 

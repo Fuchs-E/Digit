@@ -322,6 +322,16 @@ Private Sub Test_RangeCycleAndUndo()
     CheckEq ws.Range("C5").NumberFormat, "0.0", "entire column undo (odd cell)"
     Check SameFormat(ws.Range("C100").NumberFormat, "General"), "entire column undo (rest)"
 
+    ' Entire row, same idea across columns.
+    Undo_Clear
+    ws.Range("H7").NumberFormat = "0.0"
+    ws.Rows(7).Select
+    CheckEq Fmt_ApplyGroup(g, msg), drOK, "entire row: " & msg
+    Check SameFormat(ws.Range("XFD7").NumberFormat, "0.0%"), "entire row formatted"
+    Undo_Last msg
+    CheckEq ws.Range("H7").NumberFormat, "0.0", "entire row undo (odd cell)"
+    Check SameFormat(ws.Range("Z7").NumberFormat, "General"), "entire row undo (rest)"
+
     ' Merged active cell
     ws.Range("E1:F2").Merge
     ws.Range("E1:F2").Select
