@@ -26,6 +26,7 @@ Private Sub UserForm_Initialize()
     mLoading = True
     txtSample.Text = Format$(SAMPLE_DEFAULT, "0.000")
     FillFormatSuggestions
+    FillIconSuggestions
     mLoading = False
     LoadAll Store_Clone(Store_Config())
     mDirty = False
@@ -230,6 +231,7 @@ Private Sub RefreshPresets(ByVal selectIndex As Long)
         End If
     End If
     mLoading = False
+    LoadIcon
     LoadPreset
 End Sub
 
@@ -474,6 +476,58 @@ Private Sub FillFormatSuggestions()
 End Sub
 
 '------------------------------------------------------------------------------
+' Button picture (Office icon name) of the selected group
+'------------------------------------------------------------------------------
+
+Private Sub FillIconSuggestions()
+    Dim nm As Variant
+    cboIcon.Clear
+    cboIcon.AddItem ""                            ' blank = the button number
+    For Each nm In Split(DIGIT_ICON_SUGGESTIONS, ",")
+        If UI_IsOfficeIcon(CStr(nm)) Then cboIcon.AddItem CStr(nm)
+    Next nm
+End Sub
+
+Private Sub LoadIcon()
+    Dim g As Scripting.Dictionary
+    Set g = CurGroup()
+    mLoading = True
+    cboIcon.Text = Store_GroupIcon(g)
+    cboIcon.Enabled = Not g Is Nothing
+    mLoading = False
+    ShowIcon
+End Sub
+
+Private Sub cboIcon_Change()
+    Dim g As Scripting.Dictionary
+    ShowIcon
+    If mLoading Then Exit Sub
+    Set g = CurGroup()
+    If g Is Nothing Then Exit Sub
+    g("icon") = Trim$(cboIcon.Text)
+    mDirty = True
+End Sub
+
+' Preview of the picture; a name Office does not know shows in red.
+Private Sub ShowIcon()
+    Dim nm As String
+    nm = Trim$(cboIcon.Text)
+    If Len(nm) = 0 Then
+        Set imgIcon.Picture = Nothing
+        cboIcon.ForeColor = vbWindowText
+        imgIcon.ControlTipText = "No picture chosen: the ribbon shows the button number."
+    ElseIf UI_IsOfficeIcon(nm) Then
+        Set imgIcon.Picture = UI_OfficeIconPicture(nm)
+        cboIcon.ForeColor = vbWindowText
+        imgIcon.ControlTipText = nm
+    Else
+        Set imgIcon.Picture = Nothing
+        cboIcon.ForeColor = vbRed
+        imgIcon.ControlTipText = "Office has no icon called """ & nm & """."
+    End If
+End Sub
+
+'------------------------------------------------------------------------------
 ' Quick-button slots and shortcuts
 '------------------------------------------------------------------------------
 
@@ -579,6 +633,12 @@ Private Function ValidateAll(ByRef msg As String) As Boolean
 
     For gi = 1 To mCfg("groups").Count
         Set g = mCfg("groups")(gi)
+        If Len(Store_GroupIcon(g)) > 0 And Not UI_IsOfficeIcon(Store_GroupIcon(g)) Then
+            RefreshGroups gi
+            msg = "The button picture for """ & g("name") & """ (""" & Store_GroupIcon(g) & """) is not an Office icon name." & _
+                  vbCrLf & vbCrLf & "Pick one from the list, or leave it blank to show the button number."
+            Exit Function
+        End If
         For pi = 1 To g("presets").Count
             fmt = g("presets")(pi)("numberFormat")
             If Not Fmt_IsValidNumberFormat(fmt) Then

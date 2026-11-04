@@ -96,6 +96,20 @@ Public Sub Digit_GetSupertip(ByVal control As IRibbonControl, ByRef returnedVal)
     returnedVal = GroupTip(Store_FindGroup(Store_Config(), Store_SlotGroupName(Store_Config(), SlotOf(control))))
 End Sub
 
+' Picture for a quick button: the group's "icon" when it names an Office icon,
+' otherwise the button number. Returning a name (not a picture) makes the
+' ribbon draw that built-in icon.
+Public Sub Digit_GetImage(ByVal control As IRibbonControl, ByRef returnedVal)
+    returnedVal = ButtonIcon(Store_FindGroup(Store_Config(), Store_SlotGroupName(Store_Config(), SlotOf(control))), _
+                             "_" & SlotOf(control))
+End Sub
+
+Private Function ButtonIcon(ByVal g As Scripting.Dictionary, ByVal fallback As String) As String
+    Dim nm As String
+    nm = Store_GroupIcon(g)
+    If UI_IsOfficeIcon(nm) Then ButtonIcon = nm Else ButtonIcon = fallback
+End Function
+
 Private Function SlotOf(ByVal control As IRibbonControl) As Long
     If IsNumeric(control.Tag) Then SlotOf = CLng(control.Tag)
 End Function
@@ -116,6 +130,7 @@ Public Sub Digit_GetMoreContent(ByVal control As IRibbonControl, ByRef returnedV
             xml = xml & "<button id=""dgMore" & i & """" & _
                   " label=""" & Core_XmlEscape(Core_RibbonLabel(g("name"))) & """" & _
                   " tag=""" & Core_XmlEscape(g("name")) & """" & _
+                  MenuIcon(g) & _
                   " supertip=""" & Core_XmlEscape(GroupTip(g)) & """" & _
                   " onAction=""Digit_OnMoreItem""/>"
         End If
@@ -128,6 +143,12 @@ Public Sub Digit_GetMoreContent(ByVal control As IRibbonControl, ByRef returnedV
           "</menu>"
     returnedVal = xml
 End Sub
+
+Private Function MenuIcon(ByVal g As Scripting.Dictionary) As String
+    Dim nm As String
+    nm = ButtonIcon(g, "")
+    If Len(nm) > 0 Then MenuIcon = " imageMso=""" & Core_XmlEscape(nm) & """"
+End Function
 
 Public Sub Digit_OnMoreItem(ByVal control As IRibbonControl)
     App_RunGroup control.Tag

@@ -25,6 +25,15 @@ Private Const CC_FULLOPEN As Long = &H2
 Private Const CC_ANYCOLOR As Long = &H100
 
 Private mCustomColors(0 To 15) As Long
+
+' Icons offered in the settings window. Only names this Office version knows
+' are shown, so an unknown name here is harmless.
+Public Const DIGIT_ICON_SUGGESTIONS As String = _
+    "_1,_2,_3,_4,_5,_6,_7,_8,_9,PercentStyle,CommaStyle,DecimalsIncrease,DecimalsDecrease," & _
+    "AccountingFormat,CurrencySymbol,NumberFormatsDialog,FormatNumberDefault,FormatCellsDialog," & _
+    "FontColorPicker,CellFillColorPicker,FormatPainter,DateAndTimeInsert,CalendarInsert," & _
+    "Calculator,ChartTypeOtherInsertGallery,TableInsert,HappyFace,StarRatingFull,FlagRed," & _
+    "A,B,C,D,E,F,G,H,K,M,N,P,T,X"
 Private mCustomInit As Boolean
 
 ' Shows the Windows colour dialog. Returns the chosen colour (BGR Long, as used
@@ -70,3 +79,23 @@ Public Sub UI_OpenFolder(ByVal folder As String)
     On Error Resume Next
     Shell "explorer.exe """ & folder & """", vbNormalFocus
 End Sub
+
+'------------------------------------------------------------------------------
+' Office icons (imageMso names)
+'------------------------------------------------------------------------------
+
+' True when name is a built-in Office icon this version of Excel can draw.
+Public Function UI_IsOfficeIcon(ByVal name As String) As Boolean
+    Dim pic As Object
+    If Len(Trim$(name)) = 0 Then Exit Function
+    On Error Resume Next
+    Set pic = Application.CommandBars.GetImageMso(name, 16, 16)
+    UI_IsOfficeIcon = (Err.Number = 0 And Not pic Is Nothing)
+End Function
+
+' The icon as a picture (32x32), or Nothing when the name is unknown.
+Public Function UI_OfficeIconPicture(ByVal name As String) As Object
+    If Len(Trim$(name)) = 0 Then Exit Function
+    On Error Resume Next
+    Set UI_OfficeIconPicture = Application.CommandBars.GetImageMso(name, 32, 32)
+End Function

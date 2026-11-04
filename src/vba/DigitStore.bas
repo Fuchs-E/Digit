@@ -195,6 +195,12 @@ Public Function Store_Groups(ByVal cfg As Scripting.Dictionary) As Collection
     Set Store_Groups = cfg("groups")
 End Function
 
+' Office icon name for a group's ribbon button ("" = use the default).
+Public Function Store_GroupIcon(ByVal g As Scripting.Dictionary) As String
+    If g Is Nothing Then Exit Function
+    If g.Exists("icon") Then Store_GroupIcon = CStr(g("icon"))
+End Function
+
 ' Case-insensitive lookup. Returns Nothing when not found.
 Public Function Store_FindGroup(ByVal cfg As Scripting.Dictionary, ByVal groupName As String) As Scripting.Dictionary
     Dim g As Scripting.Dictionary
@@ -281,6 +287,7 @@ End Sub
 Public Function Store_NewGroup(ByVal groupName As String) As Scripting.Dictionary
     Dim g As New Scripting.Dictionary
     g("name") = groupName
+    g("icon") = ""
     Set g("presets") = New Collection
     Set Store_NewGroup = g
 End Function
@@ -421,6 +428,7 @@ Public Function Store_Normalize(ByVal src As Object) As Scripting.Dictionary
                     End If
                     Set g = New Scripting.Dictionary
                     g("name") = nm
+                    g("icon") = Trim$(DictString(item, "icon", ""))
                     Set g("presets") = presets
                     groups.Add g
                 End If

@@ -18,6 +18,7 @@ Each time Digit saves the file, it keeps the previous version as `presets.json.b
   "groups": [
     {
       "name": "Numbers",
+      "icon": "CommaStyle",
       "presets": [
         { "numberFormat": "#,##0;(#,##0);-",       "fontColor": "",        "fillColor": "" },
         { "numberFormat": "#,##0.00;(#,##0.00);-", "fontColor": "#0000FF", "fillColor": "#FFF2CC" }
@@ -35,6 +36,7 @@ Each time Digit saves the file, it keeps the previous version as `presets.json.b
 | `settings.undoDepth` | number | How many changes Undo Format remembers (1 to 50, default 10). |
 | `slots` | 5 strings | The group name on quick buttons 1 to 5, or `""`. Buttons with no group are hidden. Groups that are not in a slot appear under **More presets**. |
 | `groups[].name` | string | Must be unique (case does not matter) and not empty. It is shown as the button label. |
+| `groups[].icon` | string | Optional. The picture on the group's quick button and in **More presets**: the name of a built-in Office icon (an `imageMso` name), for example `"PercentStyle"` or `"CommaStyle"`. `""` or a name Office does not know shows the button number instead. Pick one in **Settings > Button picture**, which previews it. For the full list, search for "imageMso gallery" or Microsoft's "Office Fluent UI command identifiers". |
 | `groups[].presets` | 1 to 3 objects | The cycle order. |
 | `presets[].numberFormat` | string | **Required.** An Excel number format code, written in the English (US) syntax that VBA's `Range.NumberFormat` uses, for example `#,##0,;(#,##0,);-` or `0.0%`. The file then works the same in every Windows locale. |
 | `presets[].fontColor` | string | `"#RRGGBB"`, or `""` to leave the font colour as it is. |

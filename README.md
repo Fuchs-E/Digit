@@ -10,7 +10,7 @@ Phase 1 (this repository) is a VBA add-in (`Digit.xlam`). Presets are kept in a 
 
 | | |
 |---|---|
-| **Quick buttons** | Up to 5 buttons. Their labels come from the presets file. Slots with no group are hidden. |
+| **Quick buttons** | Up to 5 buttons, stacked in two rows (3 + 2). Their labels and pictures come from the presets file. Slots with no group are hidden. |
 | **More presets** | A drop-down listing every group that is not on a button. |
 | **Cycle logic** | The active cell's current format picks the next preset. A format that matches no preset gets preset 1. |
 | **Targeting** | Normal ranges and multi-area selections. A single cell in an Excel table formats the whole table column. A pivot values cell sets the DataField's number format, so it survives refresh. |

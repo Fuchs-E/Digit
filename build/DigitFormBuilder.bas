@@ -31,7 +31,7 @@ Public Sub BuildSettingsForm(ByVal codeFile As String)
     comp.Name = FORM_NAME
     comp.Properties("Caption").Value = "Digit - Presets"
     comp.Properties("Width").Value = 640
-    comp.Properties("Height").Value = 458
+    comp.Properties("Height").Value = 498
     Set d = comp.Designer
 
     '--- Groups (left)
@@ -87,29 +87,40 @@ Public Sub BuildSettingsForm(ByVal codeFile As String)
     c.Font.Size = 12
     c.TextAlign = 1                               ' left
 
+    '--- Ribbon picture of the selected group
+    AddLabel d, "lblIcon", 8, 284, 180, 12, "Button picture (Office icon name)"
+    Set c = AddCtl(d, "Forms.ComboBox.1", "cboIcon", 8, 298, 140, 18)
+    c.Style = 0                                   ' free text: any Office icon name
+    c.MatchEntry = 2
+    c.ControlTipText = "Pick an icon, or type any Office icon (imageMso) name. Blank = the button number."
+    Set c = AddCtl(d, "Forms.Image.1", "imgIcon", 154, 292, 34, 30)
+    c.BorderStyle = 0
+    c.PictureSizeMode = 0                         ' clip: draw at its own size
+    c.PictureAlignment = 2                        ' centre
+
     '--- Quick buttons and shortcuts (bottom)
-    AddLabel d, "lblSlots", 8, 288, 620, 12, "Quick buttons on the ribbon (preset group, then keyboard shortcut)"
+    AddLabel d, "lblSlots", 8, 328, 620, 12, "Quick buttons on the ribbon (preset group, then keyboard shortcut)"
     For i = 1 To 5
         x = 8 + (i - 1) * 125
-        AddLabel d, "lblSlot" & i, x, 304, 120, 12, "Button " & i
-        Set c = AddCtl(d, "Forms.ComboBox.1", "cboSlot" & i, x, 318, 120, 18)
+        AddLabel d, "lblSlot" & i, x, 344, 120, 12, "Button " & i
+        Set c = AddCtl(d, "Forms.ComboBox.1", "cboSlot" & i, x, 358, 120, 18)
         c.Style = 2                               ' fmStyleDropDownList
-        Set c = AddCtl(d, "Forms.TextBox.1", "txtKey" & i, x, 340, 120, 18)
+        Set c = AddCtl(d, "Forms.TextBox.1", "txtKey" & i, x, 380, 120, 18)
         c.ControlTipText = "For example Ctrl+Alt+" & i & ". Leave blank for no shortcut."
     Next i
-    Set c = AddCtl(d, "Forms.CheckBox.1", "chkShortcuts", 8, 364, 160, 16)
+    Set c = AddCtl(d, "Forms.CheckBox.1", "chkShortcuts", 8, 404, 160, 16)
     c.Caption = "Enable keyboard shortcuts"
-    AddLabel d, "lblHint", 172, 366, 456, 12, ""
+    AddLabel d, "lblHint", 172, 406, 456, 12, ""
 
     '--- Bottom row
-    AddButton d, "btnImport", 8, 398, 70, 24, "Import..."
-    AddButton d, "btnExport", 82, 398, 70, 24, "Export..."
-    AddButton d, "btnOpenFolder", 156, 398, 76, 24, "Open folder"
-    Set c = AddLabel(d, "lblStatus", 238, 404, 230, 12, "")
+    AddButton d, "btnImport", 8, 438, 70, 24, "Import..."
+    AddButton d, "btnExport", 82, 438, 70, 24, "Export..."
+    AddButton d, "btnOpenFolder", 156, 438, 76, 24, "Open folder"
+    Set c = AddLabel(d, "lblStatus", 238, 444, 230, 12, "")
     c.ForeColor = &H808080
-    Set c = AddButton(d, "btnSave", 478, 398, 72, 24, "Save")
+    Set c = AddButton(d, "btnSave", 478, 438, 72, 24, "Save")
     c.Default = True
-    Set c = AddButton(d, "btnCancel", 556, 398, 72, 24, "Cancel")
+    Set c = AddButton(d, "btnCancel", 556, 438, 72, 24, "Cancel")
     c.Cancel = True
 
     '--- Code
