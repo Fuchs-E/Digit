@@ -7,7 +7,7 @@ S=256
 BOLD='/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'
 COLORS={'green':(16,110,60,255),'blue':(31,78,140,255)}
 # (id, text lines). Up to two lines; sized to fit.
-ICONS=[('int','0'),('dec1','0.0'),('dec2','0.00'),('thou','#,0'),('thou1','#,0.0'),
+ICONS=[('hash','#'),('int','0'),('dec1','0.0'),('dec2','0.00'),('thou','#,0'),('thou1','#,0.0'),
        ('k','K'),('m','M'),('neg','(1)'),('dollar','$'),('dollar2','$.00'),
        ('pct','%'),('pct1','0.0%'),('mult','1x'),('sci','1E3'),('text','@'),
        ('plus','+/-'),('date','31'),('month','mmm')]

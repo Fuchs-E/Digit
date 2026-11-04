@@ -1,4 +1,4 @@
 {
-  "version": "1.1.6",
-  "notes": "Quick format buttons show only their icons; hover a button to see its name."
+  "version": "1.1.7",
+  "notes": "Many more button pictures: 19 Digit number icons (#, 0, 0.0, #,0, K, M, $, %, dates and more) in green and blue, plus about 400 Office icons. The picker in Settings now shows them a page at a time."
 }
