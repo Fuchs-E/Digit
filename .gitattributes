@@ -1,0 +1,8 @@
+# VBA import expects CRLF; build.ps1 normalises anyway.
+*.bas  text eol=crlf
+*.cls  text eol=crlf
+*.frm  text eol=crlf
+*.vba  text eol=crlf
+*.ps1  text eol=crlf
+*.frx  binary
+*.xlam binary

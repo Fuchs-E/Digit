@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "settings": {
+    "shortcutsEnabled": true,
+    "shortcuts": [
+      "Ctrl+Alt+1",
+      "Ctrl+Alt+2",
+      "Ctrl+Alt+3",
+      "Ctrl+Alt+4",
+      "Ctrl+Alt+5"
+    ],
+    "undoDepth": 10
+  },
+  "slots": [
+    "Numbers",
+    "Thousands",
+    "Percent",
+    "Currency",
+    "Dates"
+  ],
+  "groups": [
+    {
+      "name": "Numbers",
+      "presets": [
+        { "numberFormat": "#,##0;(#,##0);-", "fontColor": "", "fillColor": "" },
+        { "numberFormat": "#,##0.0;(#,##0.0);-", "fontColor": "", "fillColor": "" },
+        { "numberFormat": "#,##0.00;(#,##0.00);-", "fontColor": "", "fillColor": "" }
+      ]
+    },
+    {
+      "name": "Thousands",
+      "presets": [
+        { "numberFormat": "#,##0,;(#,##0,);-", "fontColor": "", "fillColor": "" },
+        { "numberFormat": "#,##0.0,;(#,##0.0,);-", "fontColor": "", "fillColor": "" },
+        { "numberFormat": "#,##0.0,,;(#,##0.0,,);-", "fontColor": "", "fillColor": "" }
+      ]
+    },
+    {
+      "name": "Percent",
+      "presets": [
+        { "numberFormat": "0%", "fontColor": "", "fillColor": "" },
+        { "numberFormat": "0.0%", "fontColor": "", "fillColor": "" },
+        { "numberFormat": "0.00%", "fontColor": "", "fillColor": "" }
+      ]
+    },
+    {
+      "name": "Currency",
+      "presets": [
+        { "numberFormat": "$#,##0;($#,##0);-", "fontColor": "", "fillColor": "" },
+        { "numberFormat": "$#,##0.00;($#,##0.00);-", "fontColor": "", "fillColor": "" }
+      ]
+    },
+    {
+      "name": "Dates",
+      "presets": [
+        { "numberFormat": "dd-mmm-yy", "fontColor": "", "fillColor": "" },
+        { "numberFormat": "mmm-yy", "fontColor": "", "fillColor": "" },
+        { "numberFormat": "yyyy-mm-dd", "fontColor": "", "fillColor": "" }
+      ]
+    },
+    {
+      "name": "Multiples",
+      "presets": [
+        { "numberFormat": "0.0\"x\"", "fontColor": "", "fillColor": "" },
+        { "numberFormat": "0.00\"x\"", "fontColor": "", "fillColor": "" }
+      ]
+    },
+    {
+      "name": "Inputs",
+      "presets": [
+        { "numberFormat": "#,##0;(#,##0);-", "fontColor": "#0000FF", "fillColor": "" },
+        { "numberFormat": "#,##0.00;(#,##0.00);-", "fontColor": "#0000FF", "fillColor": "" }
+      ]
+    }
+  ]
+}
