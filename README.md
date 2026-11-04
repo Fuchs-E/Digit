@@ -1,6 +1,6 @@
 # Digit
 
-Digit is an Excel add-in for Windows desktop (Microsoft 365). It adds a **Digit** tab to the ribbon with one-click buttons that apply your own formatting presets to the selected cells.
+Digit is an Excel add-in for Windows desktop (Microsoft 365). It adds a **Digit** group to the ribbon's **Home** tab, next to Number, with one-click buttons that apply your own formatting presets to the selected cells.
 
 Each quick button holds a **preset group** of up to three presets. Click it again and it moves to the next preset: 1 → 2 → 3 → 1. A preset is a number format plus an optional font colour and fill colour. Nothing is built in. You decide what the groups are and which ones go on the buttons.
 
@@ -10,7 +10,7 @@ Phase 1 (this repository) is a VBA add-in (`Digit.xlam`). Presets are kept in a 
 
 | | |
 |---|---|
-| **Quick buttons** | The first 5 preset groups in Settings, as large icon buttons (reorder them with Move up / Move down); hover one to see its group name. Their pictures and names come from the presets file. Slots with no group are hidden. |
+| **Quick buttons** | The first 5 preset groups in Settings, as small picture buttons in the Digit group on the Home tab (reorder them with Move up / Move down); hover one to see its group name. Their pictures and names come from the presets file. Slots with no group are hidden. |
 | **Digit menu** | One button with every group that is not on a quick button, plus Settings, Reload presets, Check for updates and the version. **Undo Format** sits next to it. |
 | **Cycle logic** | The active cell's current format picks the next preset. A format that matches no preset gets preset 1. |
 | **Targeting** | Normal ranges and multi-area selections. A single cell in an Excel table formats the whole table column. A pivot values cell sets the DataField's number format, so it survives refresh. |
@@ -30,7 +30,7 @@ cd Digit
 powershell -ExecutionPolicy Bypass -File build\build.ps1 -AllowVbomAccess -RunTests -Install
 ```
 
-This builds `dist\Digit.xlam`, runs the self-tests in a hidden Excel, and installs the add-in for your user account. Start Excel and open the **Digit** tab. For details, other options, and Trust Center notes, see [docs/INSTALL.md](docs/INSTALL.md).
+This builds `dist\Digit.xlam`, runs the self-tests in a hidden Excel, and installs the add-in for your user account. Start Excel and look for the **Digit** group on the **Home** tab. For details, other options, and Trust Center notes, see [docs/INSTALL.md](docs/INSTALL.md).
 
 ## Repository layout
 
