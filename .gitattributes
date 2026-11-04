@@ -6,3 +6,4 @@
 *.ps1  text eol=crlf
 *.frx  binary
 *.xlam binary
+*.png  binary
