@@ -154,6 +154,13 @@ Public Sub Digit_GetMenuContent(ByVal control As IRibbonControl, ByRef returnedV
     returnedVal = xml
 End Sub
 
+' imageMso attribute for a group's menu entry, or "" when it has no picture.
+Private Function MenuIcon(ByVal g As Scripting.Dictionary) As String
+    Dim nm As String
+    nm = ButtonIcon(g, "")
+    If Len(nm) > 0 Then MenuIcon = " imageMso=""" & Core_XmlEscape(nm) & """"
+End Function
+
 Public Sub Digit_OnMoreItem(ByVal control As IRibbonControl)
     App_RunGroup control.Tag
 End Sub
