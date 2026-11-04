@@ -28,7 +28,7 @@ Public Function Fmt_ApplyGroup(ByVal grp As Scripting.Dictionary, ByRef msg As S
     Dim pt As PivotTable, fields As Collection, df As PivotField
     Dim idx As Long, fontC As Long, fillC As Long, label As String
     Dim entry As Scripting.Dictionary, prevScreen As Boolean, changed As Boolean
-    Dim ws As Worksheet
+    Dim ws As Worksheet, stage As String
 
     msg = ""
     prevScreen = Application.ScreenUpdating
@@ -67,6 +67,7 @@ Public Function Fmt_ApplyGroup(ByVal grp As Scripting.Dictionary, ByRef msg As S
 
     On Error GoTo Fail
 
+    stage = "checking for a pivot table"
     '--- Pivot table data area: format the DataField(s) so it survives refresh.
     If Fmt_PivotTarget(sel, ac, pt, fields) Then
         Set ws = pt.Parent
@@ -90,10 +91,12 @@ Public Function Fmt_ApplyGroup(ByVal grp As Scripting.Dictionary, ByRef msg As S
     End If
 
     '--- Normal range or table column.
+    stage = "working out which cells to format"
     Set tgt = Fmt_RangeTarget(sel, ac)
     Set ws = tgt.Worksheet
 
     ' The active cell decides the cycle step, even when the selection is mixed.
+    stage = "reading the active cell's format"
     Set src = ac
     If ac.MergeCells Then Set src = ac.MergeArea.Cells(1, 1)
     idx = NextPresetIndex(presets, CStr(src.NumberFormat), FontHex(src), FillHex(src), True)
@@ -103,6 +106,7 @@ Public Function Fmt_ApplyGroup(ByVal grp As Scripting.Dictionary, ByRef msg As S
     fillC = Core_HexToColor(p("fillColor"))
 
     If Not skipUndo Then
+        stage = "saving an undo copy"
         Set entry = Undo_CaptureRange(tgt, fontC >= 0, fillC >= 0, label)
         If entry Is Nothing Then
             msg = "The selection is too large or too varied for Digit to save an undo copy."
@@ -114,12 +118,16 @@ Public Function Fmt_ApplyGroup(ByVal grp As Scripting.Dictionary, ByRef msg As S
     ' Whole ranges in one go: one call per property, however many cells/areas.
     Application.ScreenUpdating = False
     changed = True
+    stage = "setting the number format"
     tgt.NumberFormat = p("numberFormat")
+    stage = "setting the font colour"
     If fontC >= 0 Then tgt.Font.Color = fontC
+    stage = "setting the fill colour"
     If fillC >= 0 Then tgt.Interior.Color = fillC
     Application.ScreenUpdating = prevScreen
 
     If Not entry Is Nothing Then Undo_Push entry
+    stage = "writing the status message"
     msg = "Digit: " & label & "  " & p("numberFormat") & "  (" & DescribeTarget(sel, tgt) & ")"
     Fmt_ApplyGroup = drOK
     Exit Function
@@ -143,7 +151,8 @@ Fail:
             Exit Function
         End If
     End If
-    msg = "Digit could not apply the format." & vbCrLf & vbCrLf & errDesc & " (error " & errNum & ")"
+    msg = "Digit could not apply the format." & vbCrLf & vbCrLf & errDesc & " (error " & errNum & _
+          IIf(Len(stage) > 0, ", while " & stage, "") & ")"
     Fmt_ApplyGroup = drError
 End Function
 

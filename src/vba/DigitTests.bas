@@ -248,6 +248,13 @@ Private Function TestGroup() As Scripting.Dictionary
     Set TestGroup = g
 End Function
 
+' Theme colour of a cell's font, or -1 when it is not a theme colour.
+Private Function FontTheme(ByVal c As Range) As Variant
+    FontTheme = -1
+    On Error Resume Next
+    FontTheme = c.Font.ThemeColor
+End Function
+
 Private Function NewScratchBook() As Workbook
     Set NewScratchBook = Workbooks.Add(xlWBATWorksheet)
     NewScratchBook.Worksheets(1).Activate
@@ -330,6 +337,10 @@ Private Sub Test_MultiAreaAndColours()
     g("presets").Add Store_NewPreset("#,##0", "#0000FF")
     g("presets").Add Store_NewPreset("#,##0", "#0000FF", "#FFF2CC")
 
+    Dim fontBefore As Long, themeBefore As Variant
+    fontBefore = ws.Range("C1").Font.Color
+    themeBefore = FontTheme(ws.Range("C1"))
+
     ws.Range("A1").Interior.Color = RGB(255, 0, 0)
     ws.Range("A1:A2,C1:C2").Select
     ws.Range("A1").Activate
@@ -344,7 +355,8 @@ Private Sub Test_MultiAreaAndColours()
     Undo_Last msg: Undo_Last msg
     CheckEq ws.Range("A1").Interior.Color, RGB(255, 0, 0), "undo restores original fill"
     CheckEq ws.Range("C1").Interior.Pattern, xlNone, "undo restores no fill"
-    CheckEq ws.Range("C1").Font.ColorIndex, xlColorIndexAutomatic, "undo restores automatic font"
+    CheckEq ws.Range("C1").Font.Color, fontBefore, "undo restores original font colour"
+    CheckEq FontTheme(ws.Range("C1")), themeBefore, "undo restores theme font colour"
 
     wb.Close SaveChanges:=False
 End Sub

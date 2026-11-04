@@ -12,9 +12,13 @@ Attribute VB_Name = "DigitUndo"
 ' however large they are; mixed areas are split in half recursively until each
 ' part is uniform. That keeps whole-column selections cheap.
 '
-'   block = Array(address, numberFormat, fontMode, fontColor, fillMode, fillColor)
-'     fontMode: 0 not saved, 1 automatic, 2 colour
+'   block = Array(address, numberFormat, fontMode, fontColor, fillMode, fillColor, themeColor, tint)
+'     fontMode: 0 not saved, 1 automatic, 2 colour, 3 theme colour (themeColor + tint)
 '     fillMode: 0 not saved, 1 no fill,   2 colour
+'
+' New cells use the theme's text colour (Text 1), not "automatic", so theme
+' colours are saved as such; restoring them as plain RGB would detach the cell
+' from the workbook theme.
 '
 ' Like DigitFormat, this module has no UI.
 '==============================================================================
@@ -142,7 +146,7 @@ Private Function SnapRange(ByVal r As Range, ByVal incFont As Boolean, ByVal inc
     If rowsN = 1 And colsN = 1 Then
         ' A single cell can still read as mixed (rich text with several font
         ' colours); keep its number format and leave the font alone.
-        blocks.Add Array(r.Address(False, False), r.NumberFormat, 0, 0, FillMode(r, incFill), FillColor(r, incFill))
+        blocks.Add Array(r.Address(False, False), r.NumberFormat, 0, 0, FillMode(r, incFill), FillColor(r, incFill), 0, 0#)
         SnapRange = True
         Exit Function
     End If
@@ -161,6 +165,7 @@ End Function
 ' True when every cell in r shares the properties being saved; st receives the block.
 Private Function ReadUniform(ByVal r As Range, ByVal incFont As Boolean, ByVal incFill As Boolean, ByRef st As Variant) As Boolean
     Dim nf As Variant, fMode As Long, fColor As Variant, iMode As Long, iColor As Variant, v As Variant
+    Dim theme As Variant, tint As Variant
 
     nf = r.NumberFormat
     If IsNull(nf) Then Exit Function
@@ -174,10 +179,22 @@ Private Function ReadUniform(ByVal r As Range, ByVal incFont As Boolean, ByVal i
             fColor = r.Font.Color
             If IsNull(fColor) Then Exit Function
             fMode = 2
+            ' Theme colour? ThemeColor raises an error for a plain RGB font and is
+            ' Null when the range mixes theme colours.
+            theme = Empty
+            On Error Resume Next
+            theme = r.Font.ThemeColor
+            tint = r.Font.TintAndShade
+            On Error GoTo 0
+            If IsNull(theme) Or IsNull(tint) Then Exit Function
+            If Not IsEmpty(theme) Then
+                If theme >= 1 And theme <= 12 Then fMode = 3
+            End If
         End If
     Else
         fColor = 0
     End If
+    If fMode <> 3 Then theme = 0: tint = 0#
 
     If incFill Then
         v = r.Interior.Pattern
@@ -193,7 +210,7 @@ Private Function ReadUniform(ByVal r As Range, ByVal incFont As Boolean, ByVal i
         iColor = 0
     End If
 
-    st = Array(r.Address(False, False), CStr(nf), fMode, CLng(fColor), iMode, CLng(iColor))
+    st = Array(r.Address(False, False), CStr(nf), fMode, CLng(fColor), iMode, CLng(iColor), CLng(theme), CDbl(tint))
     ReadUniform = True
 End Function
 
@@ -246,6 +263,7 @@ Public Function Undo_Restore(ByVal entry As Scripting.Dictionary, ByRef msg As S
             Select Case b(2)
                 Case 1: r.Font.ColorIndex = xlColorIndexAutomatic
                 Case 2: r.Font.Color = b(3)
+                Case 3: r.Font.ThemeColor = b(6): r.Font.TintAndShade = b(7)
             End Select
             Select Case b(4)
                 Case 1: r.Interior.ColorIndex = xlColorIndexNone
