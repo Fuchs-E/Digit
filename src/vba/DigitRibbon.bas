@@ -72,13 +72,6 @@ Public Sub Digit_OnQuick(ByVal control As IRibbonControl)
     App_RunSlot SlotOf(control)
 End Sub
 
-Public Sub Digit_GetLabel(ByVal control As IRibbonControl, ByRef returnedVal)
-    Dim nm As String
-    nm = Store_SlotGroupName(Store_Config(), SlotOf(control))
-    If Len(nm) = 0 Then nm = "Button " & SlotOf(control)
-    returnedVal = Core_RibbonLabel(nm)
-End Sub
-
 ' Slots without a group are hidden; groups not on a button are in "More presets".
 Public Sub Digit_GetVisible(ByVal control As IRibbonControl, ByRef returnedVal)
     returnedVal = (Len(Store_SlotGroupName(Store_Config(), SlotOf(control))) > 0)

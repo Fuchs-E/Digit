@@ -1,4 +1,4 @@
 {
-  "version": "1.1.5",
-  "notes": "Fixes the compile error in 1.1.4 when using the Digit buttons. Includes the Digit menu with the green icon."
+  "version": "1.1.6",
+  "notes": "Quick format buttons show only their icons; hover a button to see its name."
 }

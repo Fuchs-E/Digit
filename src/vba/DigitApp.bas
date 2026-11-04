@@ -6,7 +6,7 @@ Attribute VB_Name = "DigitApp"
 '==============================================================================
 Option Explicit
 
-Public Const DIGIT_VERSION As String = "1.1.5"
+Public Const DIGIT_VERSION As String = "1.1.6"
 Public Const DIGIT_TITLE As String = "Digit"
 
 Private mStarted As Boolean

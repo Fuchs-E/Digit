@@ -10,27 +10,23 @@
     <tabs>
       <tab id="tabDigit" label="Digit" insertAfterMso="TabHome">
 
-        <!-- Large icon-only buttons; the group name shows as the tooltip. Each
+        <!-- Large icon-only buttons; the group name shows as the tooltip. Excel
+             ignores showLabel="false" on large buttons, so the label is a blank. Each
              button's picture comes from its group's "icon" (an Office icon name). -->
         <group id="grpDigitQuick" label="Quick formats">
-          <button id="btnDigitQuick1" tag="1" size="large" showLabel="false" getImage="Digit_GetImage"
-                  getLabel="Digit_GetLabel" getVisible="Digit_GetVisible"
+          <button id="btnDigitQuick1" tag="1" size="large" label=" " getImage="Digit_GetImage" getVisible="Digit_GetVisible"
                   getScreentip="Digit_GetScreentip" getSupertip="Digit_GetSupertip"
                   onAction="Digit_OnQuick"/>
-          <button id="btnDigitQuick2" tag="2" size="large" showLabel="false" getImage="Digit_GetImage"
-                  getLabel="Digit_GetLabel" getVisible="Digit_GetVisible"
+          <button id="btnDigitQuick2" tag="2" size="large" label=" " getImage="Digit_GetImage" getVisible="Digit_GetVisible"
                   getScreentip="Digit_GetScreentip" getSupertip="Digit_GetSupertip"
                   onAction="Digit_OnQuick"/>
-          <button id="btnDigitQuick3" tag="3" size="large" showLabel="false" getImage="Digit_GetImage"
-                  getLabel="Digit_GetLabel" getVisible="Digit_GetVisible"
+          <button id="btnDigitQuick3" tag="3" size="large" label=" " getImage="Digit_GetImage" getVisible="Digit_GetVisible"
                   getScreentip="Digit_GetScreentip" getSupertip="Digit_GetSupertip"
                   onAction="Digit_OnQuick"/>
-          <button id="btnDigitQuick4" tag="4" size="large" showLabel="false" getImage="Digit_GetImage"
-                  getLabel="Digit_GetLabel" getVisible="Digit_GetVisible"
+          <button id="btnDigitQuick4" tag="4" size="large" label=" " getImage="Digit_GetImage" getVisible="Digit_GetVisible"
                   getScreentip="Digit_GetScreentip" getSupertip="Digit_GetSupertip"
                   onAction="Digit_OnQuick"/>
-          <button id="btnDigitQuick5" tag="5" size="large" showLabel="false" getImage="Digit_GetImage"
-                  getLabel="Digit_GetLabel" getVisible="Digit_GetVisible"
+          <button id="btnDigitQuick5" tag="5" size="large" label=" " getImage="Digit_GetImage" getVisible="Digit_GetVisible"
                   getScreentip="Digit_GetScreentip" getSupertip="Digit_GetSupertip"
                   onAction="Digit_OnQuick"/>
         </group>
