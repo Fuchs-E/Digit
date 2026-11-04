@@ -33,6 +33,7 @@ Each time Digit saves the file, it keeps the previous version as `presets.json.b
 | `version` | number | Schema version. Currently `1`. |
 | `settings.shortcutsEnabled` | bool | Turns the quick-button keyboard shortcuts on or off. |
 | `settings.shortcuts` | 5 strings | The shortcut for buttons 1 to 5, such as `"Ctrl+Alt+1"`, `"Ctrl+Shift+F5"` or `"Alt+Q"`. Use `""` for none. A shortcut needs Ctrl or Alt, unless it is a function key. |
+| `settings.largeButtons` | bool | `true` shows the quick buttons and Undo Format large on the ribbon (one per column); `false` (default) shows them small, three to a column. Set in **Settings > Large quick buttons**. |
 | `settings.undoDepth` | number | How many changes Undo Format remembers (1 to 50, default 10). |
 | `slots` | 5 strings | Written by Digit for reference: the names of the first five groups. **The quick buttons are the first five groups in `groups`, left to right**; the rest appear in the Digit menu. When Digit reads a file, groups named in `slots` move to the front in that order, so files from older versions keep their buttons. |
 | `groups[].name` | string | Must be unique (case does not matter) and not empty. It is shown as the button label. |

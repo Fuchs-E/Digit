@@ -126,6 +126,13 @@ Private Function ButtonIcon(ByVal g As Scripting.Dictionary, ByVal fallback As S
     If UI_IconExists(nm) Then ButtonIcon = nm Else ButtonIcon = fallback
 End Function
 
+' Quick buttons and Undo Format: small (0) or large (1), from Settings.
+Public Sub Digit_GetSize(ByVal control As IRibbonControl, ByRef returnedVal)
+    returnedVal = 0
+    On Error Resume Next
+    If Store_LargeButtons(Store_Config()) Then returnedVal = 1
+End Sub
+
 Private Function SlotOf(ByVal control As IRibbonControl) As Long
     If IsNumeric(control.Tag) Then SlotOf = CLng(control.Tag)
 End Function

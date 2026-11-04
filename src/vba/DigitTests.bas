@@ -239,6 +239,11 @@ Private Sub Test_Normalize()
     CheckEq cfg("settings")("shortcuts").Count, 5, "5 shortcuts"
     CheckEq cfg("settings")("undoDepth"), 50, "undo depth clamped"
     CheckEq cfg("settings")("shortcutsEnabled"), True, "shortcuts default on"
+    CheckEq Store_LargeButtons(cfg), False, "small quick buttons by default"
+    Set cfg = Store_ParseConfig("{""groups"":[{""name"":""X"",""presets"":[{""numberFormat"":""0""}]}],""settings"":{""largeButtons"":true}}", errMsg)
+    CheckEq Store_LargeButtons(cfg), True, "large quick buttons setting read"
+    Set cfg = Store_ParseConfig(Store_ToJson(cfg), errMsg)
+    CheckEq Store_LargeButtons(cfg), True, "large quick buttons setting survives save"
 
     Check Store_ParseConfig("not json", errMsg) Is Nothing, "invalid json rejected"
     Check Store_ParseConfig("{""groups"":[]}", errMsg) Is Nothing, "no groups rejected"

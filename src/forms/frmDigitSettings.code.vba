@@ -76,6 +76,7 @@ Private Sub LoadAll(ByVal cfg As Scripting.Dictionary)
     Set mCfg = cfg
     mLoading = True
     chkShortcuts.Value = Store_ShortcutsEnabled(mCfg)
+    chkLarge.Value = Store_LargeButtons(mCfg)
     For i = 1 To DIGIT_SLOT_COUNT
         KeyBox(i).Text = Store_Shortcut(mCfg, i)
         KeyBox(i).ForeColor = vbWindowText
@@ -804,6 +805,12 @@ Private Sub txtKey2_Change(): KeyChanged 2: End Sub
 Private Sub txtKey3_Change(): KeyChanged 3: End Sub
 Private Sub txtKey4_Change(): KeyChanged 4: End Sub
 Private Sub txtKey5_Change(): KeyChanged 5: End Sub
+
+Private Sub chkLarge_Click()
+    If mLoading Then Exit Sub
+    mCfg("settings")("largeButtons") = CBool(chkLarge.Value)
+    mDirty = True
+End Sub
 
 Private Sub chkShortcuts_Click()
     If mLoading Then Exit Sub

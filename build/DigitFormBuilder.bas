@@ -96,7 +96,7 @@ Public Sub BuildSettingsForm(ByVal codeFile As String)
     AddButton d, "btnIconNone", 120, 298, 68, 22, "Use number"
 
     '--- Quick buttons and shortcuts (bottom)
-    AddLabel d, "lblSlots", 8, 328, 620, 24, "Quick buttons: the first five groups in the list, left to right " & _
+    AddLabel d, "lblSlots", 8, 336, 620, 14, "Quick buttons: the first five groups in the list, left to right " & _
              "(use Move up / Move down to change them). Keyboard shortcut for each:"
     For i = 1 To 5
         x = 8 + (i - 1) * 125
@@ -106,7 +106,11 @@ Public Sub BuildSettingsForm(ByVal codeFile As String)
     Next i
     Set c = AddCtl(d, "Forms.CheckBox.1", "chkShortcuts", 8, 400, 160, 16)
     c.Caption = "Enable keyboard shortcuts"
-    AddLabel d, "lblHint", 172, 402, 456, 12, ""
+    Set c = AddCtl(d, "Forms.CheckBox.1", "chkLarge", 172, 400, 200, 16)
+    c.Caption = "Large quick buttons"
+    c.ControlTipText = "Show the quick buttons and Undo Format large on the ribbon (one per column) instead of small."
+    Set c = AddLabel(d, "lblHint", 8, 420, 620, 12, "")
+    c.ForeColor = &H808080
 
     '--- Bottom row
     AddButton d, "btnImport", 8, 438, 70, 24, "Import..."

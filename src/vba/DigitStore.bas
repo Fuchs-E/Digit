@@ -265,6 +265,11 @@ Public Function Store_ShortcutsEnabled(ByVal cfg As Scripting.Dictionary) As Boo
     Store_ShortcutsEnabled = cfg("settings")("shortcutsEnabled")
 End Function
 
+' True when the quick buttons (and Undo Format) are shown large on the ribbon.
+Public Function Store_LargeButtons(ByVal cfg As Scripting.Dictionary) As Boolean
+    If cfg("settings").Exists("largeButtons") Then Store_LargeButtons = cfg("settings")("largeButtons")
+End Function
+
 Public Function Store_CheckForUpdates(ByVal cfg As Scripting.Dictionary) As Boolean
     Store_CheckForUpdates = True
     If cfg("settings").Exists("checkForUpdates") Then Store_CheckForUpdates = cfg("settings")("checkForUpdates")
@@ -385,6 +390,7 @@ Public Function Store_DefaultConfig() As Scripting.Dictionary
     Set settings("shortcuts") = keys
     settings("undoDepth") = 10
     settings("checkForUpdates") = True
+    settings("largeButtons") = False
 
     cfg("version") = DIGIT_FILE_VERSION
     Set cfg("settings") = settings
@@ -510,6 +516,7 @@ Public Function Store_Normalize(ByVal src As Object) As Scripting.Dictionary
     If depth > 50 Then depth = 50
     settings("undoDepth") = depth
     settings("checkForUpdates") = DictBool(srcSettings, "checkForUpdates", True)
+    settings("largeButtons") = DictBool(srcSettings, "largeButtons", False)
 
     cfg("version") = DIGIT_FILE_VERSION
     Set cfg("settings") = settings
