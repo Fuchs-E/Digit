@@ -29,10 +29,15 @@ Private mCustomColors(0 To 15) As Long
 ' Icons offered in the settings window. Only names this Office version knows
 ' are shown, so an unknown name here is harmless.
 Public Const DIGIT_ICON_SUGGESTIONS As String = _
-    "_1,_2,_3,_4,_5,_6,_7,_8,_9,PercentStyle,CommaStyle,DecimalsIncrease,DecimalsDecrease," & _
-    "AccountingFormat,CurrencySymbol,NumberFormatsDialog,FormatNumberDefault,FormatCellsDialog," & _
-    "FontColorPicker,CellFillColorPicker,FormatPainter,DateAndTimeInsert,CalendarInsert," & _
-    "Calculator,ChartTypeOtherInsertGallery,TableInsert,HappyFace,StarRatingFull,FlagRed," & _
+    "_1,_2,_3,_4,_5,_6,_7,_8,_9,_0,PercentStyle,CommaStyle,AccountingFormat,AccountingFormatMenu," & _
+    "CurrencySymbol,NumberFormatGallery,NumberFormatsDialog,DecimalsIncrease,DecimalsDecrease,FormatNumberDefault," & _
+    "FormatCellsDialog,DateAndTimeInsert,CalendarInsert,DateTimeInsert,AutoSum,FunctionWizard,Calculator," & _
+    "FormulaMoreFunctionsMenu,SymbolInsert,EquationInsertNew,FontColorPicker,CellFillColorPicker," & _
+    "FillColor,Bold,Italic,Underline,FontSizeIncrease,FontSizeDecrease,BordersMenu,BorderBottom,ConditionalFormattingMenu," & _
+    "CellStylesGallery,FormatPainter,FormatAsTableGallery,TableInsert,PivotTableInsert,ChartInsert," & _
+    "ChartTypeColumnInsertGallery,ChartTypeLineInsertGallery,ChartTypePieInsertGallery,SortAscendingExcel," & _
+    "SortDescendingExcel,Filter,GroupSort,HappyFace,StarRatingFull,FlagRed,FlagGreen,FlagYellow,AcceptInvitation," & _
+    "DeclineInvitation,Help,Info,ShapeStar,ShapeHeart,ShapeSmileyFace,ShapeRectangle,ShapeOval,ShapeRightArrow," & _
     "A,B,C,D,E,F,G,H,K,M,N,P,T,X"
 Private mCustomInit As Boolean
 

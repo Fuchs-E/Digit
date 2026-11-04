@@ -479,53 +479,181 @@ End Sub
 ' Button picture (Office icon name) of the selected group
 '------------------------------------------------------------------------------
 
+Private Const ICON_CELLS As Long = 66
+
+' Fills the picker grid with the suggested icons this Office version has.
 Private Sub FillIconSuggestions()
-    Dim nm As Variant
-    cboIcon.Clear
-    cboIcon.AddItem ""                            ' blank = the button number
+    Dim nm As Variant, k As Long, cell As MSForms.Image
     For Each nm In Split(DIGIT_ICON_SUGGESTIONS, ",")
-        If UI_IsOfficeIcon(CStr(nm)) Then cboIcon.AddItem CStr(nm)
+        If k >= ICON_CELLS Then Exit For
+        If UI_IsOfficeIcon(CStr(nm)) Then
+            k = k + 1
+            Set cell = Me.Controls("imgPick" & k)
+            Set cell.Picture = UI_OfficeIconPicture(CStr(nm))
+            cell.Tag = CStr(nm)
+            cell.ControlTipText = CStr(nm)
+        End If
     Next nm
+    For k = k + 1 To ICON_CELLS
+        Me.Controls("imgPick" & k).Visible = False
+    Next k
 End Sub
 
 Private Sub LoadIcon()
     Dim g As Scripting.Dictionary
     Set g = CurGroup()
     mLoading = True
-    cboIcon.Text = Store_GroupIcon(g)
-    cboIcon.Enabled = Not g Is Nothing
+    txtIcon.Text = Store_GroupIcon(g)
+    mLoading = False
+    btnIconPick.Enabled = Not g Is Nothing
+    btnIconNone.Enabled = Not g Is Nothing
+    ShowIcon
+End Sub
+
+Private Sub SetIcon(ByVal nm As String)
+    Dim g As Scripting.Dictionary
+    Set g = CurGroup()
+    If g Is Nothing Then Exit Sub
+    g("icon") = Trim$(nm)
+    mDirty = True
+    mLoading = True
+    txtIcon.Text = Trim$(nm)
     mLoading = False
     ShowIcon
 End Sub
 
-Private Sub cboIcon_Change()
-    Dim g As Scripting.Dictionary
-    ShowIcon
+Private Sub btnIconPick_Click()
+    If CurGroup() Is Nothing Then Exit Sub
+    MarkPicked
+    fraIcons.Visible = True
+    fraIcons.ZOrder 0
+End Sub
+
+Private Sub imgIcon_Click()
+    btnIconPick_Click
+End Sub
+
+Private Sub btnIconNone_Click()
+    SetIcon ""
+End Sub
+
+Private Sub btnIconClose_Click()
+    fraIcons.Visible = False
+End Sub
+
+Private Sub PickIcon(ByVal k As Long)
+    SetIcon Me.Controls("imgPick" & k).Tag
+    fraIcons.Visible = False
+End Sub
+
+Private Sub txtIcon_Change()
     If mLoading Then Exit Sub
-    Set g = CurGroup()
-    If g Is Nothing Then Exit Sub
-    g("icon") = Trim$(cboIcon.Text)
-    mDirty = True
+    SetIcon txtIcon.Text
+    MarkPicked
+End Sub
+
+' Frames the current picture in the grid.
+Private Sub MarkPicked()
+    Dim k As Long, cell As MSForms.Image
+    For k = 1 To ICON_CELLS
+        Set cell = Me.Controls("imgPick" & k)
+        If cell.Visible Then
+            If Len(cell.Tag) > 0 And StrComp(cell.Tag, Trim$(txtIcon.Text), vbTextCompare) = 0 Then
+                cell.BorderStyle = 1
+                cell.BackColor = &HF7E6CC               ' light blue
+            Else
+                cell.BorderStyle = 0
+                cell.BackColor = &HFFFFFF
+            End If
+        End If
+    Next k
 End Sub
 
 ' Preview of the picture; a name Office does not know shows in red.
 Private Sub ShowIcon()
     Dim nm As String
-    nm = Trim$(cboIcon.Text)
+    nm = Trim$(txtIcon.Text)
     If Len(nm) = 0 Then
         Set imgIcon.Picture = Nothing
-        cboIcon.ForeColor = vbWindowText
-        imgIcon.ControlTipText = "No picture chosen: the ribbon shows the button number."
+        txtIcon.ForeColor = vbWindowText
+        imgIcon.ControlTipText = "No picture: the ribbon shows the button number. Click to choose one."
     ElseIf UI_IsOfficeIcon(nm) Then
         Set imgIcon.Picture = UI_OfficeIconPicture(nm)
-        cboIcon.ForeColor = vbWindowText
-        imgIcon.ControlTipText = nm
+        txtIcon.ForeColor = vbWindowText
+        imgIcon.ControlTipText = nm & " (click to change)"
     Else
         Set imgIcon.Picture = Nothing
-        cboIcon.ForeColor = vbRed
+        txtIcon.ForeColor = vbRed
         imgIcon.ControlTipText = "Office has no icon called """ & nm & """."
     End If
 End Sub
+
+Private Sub imgPick1_Click(): PickIcon 1: End Sub
+Private Sub imgPick2_Click(): PickIcon 2: End Sub
+Private Sub imgPick3_Click(): PickIcon 3: End Sub
+Private Sub imgPick4_Click(): PickIcon 4: End Sub
+Private Sub imgPick5_Click(): PickIcon 5: End Sub
+Private Sub imgPick6_Click(): PickIcon 6: End Sub
+Private Sub imgPick7_Click(): PickIcon 7: End Sub
+Private Sub imgPick8_Click(): PickIcon 8: End Sub
+Private Sub imgPick9_Click(): PickIcon 9: End Sub
+Private Sub imgPick10_Click(): PickIcon 10: End Sub
+Private Sub imgPick11_Click(): PickIcon 11: End Sub
+Private Sub imgPick12_Click(): PickIcon 12: End Sub
+Private Sub imgPick13_Click(): PickIcon 13: End Sub
+Private Sub imgPick14_Click(): PickIcon 14: End Sub
+Private Sub imgPick15_Click(): PickIcon 15: End Sub
+Private Sub imgPick16_Click(): PickIcon 16: End Sub
+Private Sub imgPick17_Click(): PickIcon 17: End Sub
+Private Sub imgPick18_Click(): PickIcon 18: End Sub
+Private Sub imgPick19_Click(): PickIcon 19: End Sub
+Private Sub imgPick20_Click(): PickIcon 20: End Sub
+Private Sub imgPick21_Click(): PickIcon 21: End Sub
+Private Sub imgPick22_Click(): PickIcon 22: End Sub
+Private Sub imgPick23_Click(): PickIcon 23: End Sub
+Private Sub imgPick24_Click(): PickIcon 24: End Sub
+Private Sub imgPick25_Click(): PickIcon 25: End Sub
+Private Sub imgPick26_Click(): PickIcon 26: End Sub
+Private Sub imgPick27_Click(): PickIcon 27: End Sub
+Private Sub imgPick28_Click(): PickIcon 28: End Sub
+Private Sub imgPick29_Click(): PickIcon 29: End Sub
+Private Sub imgPick30_Click(): PickIcon 30: End Sub
+Private Sub imgPick31_Click(): PickIcon 31: End Sub
+Private Sub imgPick32_Click(): PickIcon 32: End Sub
+Private Sub imgPick33_Click(): PickIcon 33: End Sub
+Private Sub imgPick34_Click(): PickIcon 34: End Sub
+Private Sub imgPick35_Click(): PickIcon 35: End Sub
+Private Sub imgPick36_Click(): PickIcon 36: End Sub
+Private Sub imgPick37_Click(): PickIcon 37: End Sub
+Private Sub imgPick38_Click(): PickIcon 38: End Sub
+Private Sub imgPick39_Click(): PickIcon 39: End Sub
+Private Sub imgPick40_Click(): PickIcon 40: End Sub
+Private Sub imgPick41_Click(): PickIcon 41: End Sub
+Private Sub imgPick42_Click(): PickIcon 42: End Sub
+Private Sub imgPick43_Click(): PickIcon 43: End Sub
+Private Sub imgPick44_Click(): PickIcon 44: End Sub
+Private Sub imgPick45_Click(): PickIcon 45: End Sub
+Private Sub imgPick46_Click(): PickIcon 46: End Sub
+Private Sub imgPick47_Click(): PickIcon 47: End Sub
+Private Sub imgPick48_Click(): PickIcon 48: End Sub
+Private Sub imgPick49_Click(): PickIcon 49: End Sub
+Private Sub imgPick50_Click(): PickIcon 50: End Sub
+Private Sub imgPick51_Click(): PickIcon 51: End Sub
+Private Sub imgPick52_Click(): PickIcon 52: End Sub
+Private Sub imgPick53_Click(): PickIcon 53: End Sub
+Private Sub imgPick54_Click(): PickIcon 54: End Sub
+Private Sub imgPick55_Click(): PickIcon 55: End Sub
+Private Sub imgPick56_Click(): PickIcon 56: End Sub
+Private Sub imgPick57_Click(): PickIcon 57: End Sub
+Private Sub imgPick58_Click(): PickIcon 58: End Sub
+Private Sub imgPick59_Click(): PickIcon 59: End Sub
+Private Sub imgPick60_Click(): PickIcon 60: End Sub
+Private Sub imgPick61_Click(): PickIcon 61: End Sub
+Private Sub imgPick62_Click(): PickIcon 62: End Sub
+Private Sub imgPick63_Click(): PickIcon 63: End Sub
+Private Sub imgPick64_Click(): PickIcon 64: End Sub
+Private Sub imgPick65_Click(): PickIcon 65: End Sub
+Private Sub imgPick66_Click(): PickIcon 66: End Sub
 
 '------------------------------------------------------------------------------
 ' Quick-button slots and shortcuts

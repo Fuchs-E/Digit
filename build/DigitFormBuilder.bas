@@ -88,15 +88,12 @@ Public Sub BuildSettingsForm(ByVal codeFile As String)
     c.TextAlign = 1                               ' left
 
     '--- Ribbon picture of the selected group
-    AddLabel d, "lblIcon", 8, 284, 180, 12, "Button picture (Office icon name)"
-    Set c = AddCtl(d, "Forms.ComboBox.1", "cboIcon", 8, 298, 140, 18)
-    c.Style = 0                                   ' free text: any Office icon name
-    c.MatchEntry = 2
-    c.ControlTipText = "Pick an icon, or type any Office icon (imageMso) name. Blank = the button number."
-    Set c = AddCtl(d, "Forms.Image.1", "imgIcon", 154, 292, 34, 30)
-    c.BorderStyle = 0
-    c.PictureSizeMode = 0                         ' clip: draw at its own size
-    c.PictureAlignment = 2                        ' centre
+    AddLabel d, "lblIcon", 8, 284, 180, 12, "Button picture"
+    Set c = AddCtl(d, "Forms.Image.1", "imgIcon", 8, 297, 36, 34)
+    IconCell c
+    c.BorderStyle = 1
+    AddButton d, "btnIconPick", 50, 298, 66, 22, "Choose..."
+    AddButton d, "btnIconNone", 120, 298, 68, 22, "Use number"
 
     '--- Quick buttons and shortcuts (bottom)
     AddLabel d, "lblSlots", 8, 328, 620, 12, "Quick buttons on the ribbon (preset group, then keyboard shortcut)"
@@ -122,6 +119,20 @@ Public Sub BuildSettingsForm(ByVal codeFile As String)
     c.Default = True
     Set c = AddButton(d, "btnCancel", 556, 438, 72, 24, "Cancel")
     c.Cancel = True
+
+    '--- Picture picker: covers the preset editor while open
+    Dim fra As Object, k As Long
+    Set fra = AddCtl(d, "Forms.Frame.1", "fraIcons", 196, 4, 436, 276)
+    fra.Caption = "Choose a button picture"
+    fra.Visible = False
+    For k = 1 To 66
+        Set c = AddCtl(fra, "Forms.Image.1", "imgPick" & k, 8 + ((k - 1) Mod 11) * 38, 6 + ((k - 1) \ 11) * 38, 36, 36)
+        IconCell c
+    Next k
+    AddLabel fra, "lblIconName", 8, 6 + 6 * 38 + 4, 130, 12, "Or type an Office icon name:"
+    Set c = AddCtl(fra, "Forms.TextBox.1", "txtIcon", 140, 6 + 6 * 38, 150, 18)
+    c.ControlTipText = "Any Office icon (imageMso) name. Leave blank to show the button number."
+    AddButton fra, "btnIconClose", 350, 6 + 6 * 38 - 2, 74, 22, "Close"
 
     '--- Code
     With comp.CodeModule
@@ -157,6 +168,15 @@ Private Function AddButton(ByVal d As Object, ByVal nm As String, ByVal l As Sin
     c.Caption = cap
     Set AddButton = c
 End Function
+
+Private Sub IconCell(ByVal c As Object)
+    c.BorderStyle = 0
+    c.SpecialEffect = 0
+    c.BackStyle = 1
+    c.BackColor = &HFFFFFF
+    c.PictureSizeMode = 0                         ' draw at its own size
+    c.PictureAlignment = 2                        ' centre
+End Sub
 
 Private Sub Swatch(ByVal c As Object)
     c.BorderStyle = 1                             ' fmBorderStyleSingle

@@ -10,33 +10,29 @@
     <tabs>
       <tab id="tabDigit" label="Digit" insertAfterMso="TabHome">
 
-        <!-- Two rows of small buttons: 1-3 on top, 4-5 below. Each button's
-             picture comes from its group's "icon" (an Office icon name). -->
+        <!-- Large icon-only buttons; the group name shows as the tooltip. Each
+             button's picture comes from its group's "icon" (an Office icon name). -->
         <group id="grpDigitQuick" label="Quick formats">
-          <box id="boxDigitRow1" boxStyle="horizontal">
-            <button id="btnDigitQuick1" tag="1" getImage="Digit_GetImage"
-                    getLabel="Digit_GetLabel" getVisible="Digit_GetVisible"
-                    getScreentip="Digit_GetScreentip" getSupertip="Digit_GetSupertip"
-                    onAction="Digit_OnQuick"/>
-            <button id="btnDigitQuick2" tag="2" getImage="Digit_GetImage"
-                    getLabel="Digit_GetLabel" getVisible="Digit_GetVisible"
-                    getScreentip="Digit_GetScreentip" getSupertip="Digit_GetSupertip"
-                    onAction="Digit_OnQuick"/>
-            <button id="btnDigitQuick3" tag="3" getImage="Digit_GetImage"
-                    getLabel="Digit_GetLabel" getVisible="Digit_GetVisible"
-                    getScreentip="Digit_GetScreentip" getSupertip="Digit_GetSupertip"
-                    onAction="Digit_OnQuick"/>
-          </box>
-          <box id="boxDigitRow2" boxStyle="horizontal">
-            <button id="btnDigitQuick4" tag="4" getImage="Digit_GetImage"
-                    getLabel="Digit_GetLabel" getVisible="Digit_GetVisible"
-                    getScreentip="Digit_GetScreentip" getSupertip="Digit_GetSupertip"
-                    onAction="Digit_OnQuick"/>
-            <button id="btnDigitQuick5" tag="5" getImage="Digit_GetImage"
-                    getLabel="Digit_GetLabel" getVisible="Digit_GetVisible"
-                    getScreentip="Digit_GetScreentip" getSupertip="Digit_GetSupertip"
-                    onAction="Digit_OnQuick"/>
-          </box>
+          <button id="btnDigitQuick1" tag="1" size="large" showLabel="false" getImage="Digit_GetImage"
+                  getLabel="Digit_GetLabel" getVisible="Digit_GetVisible"
+                  getScreentip="Digit_GetScreentip" getSupertip="Digit_GetSupertip"
+                  onAction="Digit_OnQuick"/>
+          <button id="btnDigitQuick2" tag="2" size="large" showLabel="false" getImage="Digit_GetImage"
+                  getLabel="Digit_GetLabel" getVisible="Digit_GetVisible"
+                  getScreentip="Digit_GetScreentip" getSupertip="Digit_GetSupertip"
+                  onAction="Digit_OnQuick"/>
+          <button id="btnDigitQuick3" tag="3" size="large" showLabel="false" getImage="Digit_GetImage"
+                  getLabel="Digit_GetLabel" getVisible="Digit_GetVisible"
+                  getScreentip="Digit_GetScreentip" getSupertip="Digit_GetSupertip"
+                  onAction="Digit_OnQuick"/>
+          <button id="btnDigitQuick4" tag="4" size="large" showLabel="false" getImage="Digit_GetImage"
+                  getLabel="Digit_GetLabel" getVisible="Digit_GetVisible"
+                  getScreentip="Digit_GetScreentip" getSupertip="Digit_GetSupertip"
+                  onAction="Digit_OnQuick"/>
+          <button id="btnDigitQuick5" tag="5" size="large" showLabel="false" getImage="Digit_GetImage"
+                  getLabel="Digit_GetLabel" getVisible="Digit_GetVisible"
+                  getScreentip="Digit_GetScreentip" getSupertip="Digit_GetSupertip"
+                  onAction="Digit_OnQuick"/>
         </group>
 
         <group id="grpDigitMore" label="Presets">
