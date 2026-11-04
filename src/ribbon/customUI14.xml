@@ -35,28 +35,16 @@
                   onAction="Digit_OnQuick"/>
         </group>
 
-        <group id="grpDigitMore" label="Presets">
-          <dynamicMenu id="mnuDigitMore" label="More presets" size="large" imageMso="FormatPainter"
-                       screentip="More presets"
-                       supertip="Preset groups that are not on a quick button."
-                       getContent="Digit_GetMoreContent" invalidateContentOnDrop="true"/>
-        </group>
-
         <group id="grpDigitTools" label="Digit">
           <button id="btnDigitUndo" label="Undo Format" size="large" imageMso="Undo"
                   screentip="Undo Format" getSupertip="Digit_GetUndoSupertip"
                   getEnabled="Digit_GetUndoEnabled" onAction="Digit_OnUndo"/>
-          <button id="btnDigitSettings" label="Settings" size="large" imageMso="PropertySheet"
-                  screentip="Digit Settings"
-                  supertip="Create, edit and reorder preset groups, assign them to the quick buttons, and set keyboard shortcuts."
-                  onAction="Digit_OnSettings"/>
-          <button id="btnDigitReload" label="Reload presets" imageMso="Refresh"
-                  screentip="Reload presets"
-                  supertip="Read presets.json again, for example after editing it by hand or replacing it with a shared copy."
-                  onAction="Digit_OnReload"/>
-          <button id="btnDigitUpdate" label="Check for updates" getImage="Digit_GetUpdateImage"
-                  screentip="Check for updates" getSupertip="Digit_GetVersionLabel"
-                  onAction="Digit_OnCheckUpdates"/>
+          <!-- One menu for everything else: other presets, Settings, Reload,
+               Check for updates and the version (built in Digit_GetMenuContent). -->
+          <dynamicMenu id="mnuDigit" label="Digit" size="large" image="digitIcon"
+                       screentip="Digit"
+                       supertip="More presets, Settings, Reload presets and Check for updates."
+                       getContent="Digit_GetMenuContent" invalidateContentOnDrop="true"/>
         </group>
 
       </tab>

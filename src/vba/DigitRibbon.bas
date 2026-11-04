@@ -115,14 +115,15 @@ Private Function SlotOf(ByVal control As IRibbonControl) As Long
 End Function
 
 '------------------------------------------------------------------------------
-' "More presets" dynamic menu (button tag = group name)
+' Digit menu: groups not on a quick button (tag = group name), then the tools
 '------------------------------------------------------------------------------
 
-Public Sub Digit_GetMoreContent(ByVal control As IRibbonControl, ByRef returnedVal)
+Public Sub Digit_GetMenuContent(ByVal control As IRibbonControl, ByRef returnedVal)
     Dim cfg As Scripting.Dictionary, g As Scripting.Dictionary, xml As String, i As Long, n As Long
 
     Set cfg = Store_Config()
-    xml = "<menu xmlns=""" & MENU_NS & """>"
+    xml = "<menu xmlns=""" & MENU_NS & """>" & _
+          "<menuSeparator id=""dgSepPresets"" title=""More presets""/>"
     For Each g In cfg("groups")
         i = i + 1
         If Not Store_IsInSlot(cfg, g("name")) Then
@@ -136,19 +137,22 @@ Public Sub Digit_GetMoreContent(ByVal control As IRibbonControl, ByRef returnedV
         End If
     Next g
     If n = 0 Then
-        xml = xml & "<button id=""dgMoreNone"" label=""(every group is on a button)"" enabled=""false""/>"
+        xml = xml & "<button id=""dgMoreNone"" label=""(every group is on a quick button)"" enabled=""false""/>"
     End If
-    xml = xml & "<menuSeparator id=""dgMoreSep""/>" & _
-          "<button id=""dgMoreSettings"" label=""Manage presets..."" imageMso=""PropertySheet"" onAction=""Digit_OnSettings""/>" & _
+    xml = xml & "<menuSeparator id=""dgSepTools""/>" & _
+          "<button id=""dgSettings"" label=""Settings..."" imageMso=""PropertySheet""" & _
+          " supertip=""Create, edit and reorder preset groups, choose button pictures, and set keyboard shortcuts.""" & _
+          " onAction=""Digit_OnSettings""/>" & _
+          "<button id=""dgReload"" label=""Reload presets"" imageMso=""Refresh""" & _
+          " supertip=""Read presets.json again, for example after editing it by hand or replacing it with a shared copy.""" & _
+          " onAction=""Digit_OnReload""/>" & _
+          "<button id=""dgUpdate"" label=""Check for updates"" imageMso=""" & UpdateIcon() & """" & _
+          " onAction=""Digit_OnCheckUpdates""/>" & _
+          "<menuSeparator id=""dgSepVersion""/>" & _
+          "<button id=""dgVersion"" label=""Digit " & DIGIT_VERSION & """ enabled=""false""/>" & _
           "</menu>"
     returnedVal = xml
 End Sub
-
-Private Function MenuIcon(ByVal g As Scripting.Dictionary) As String
-    Dim nm As String
-    nm = ButtonIcon(g, "")
-    If Len(nm) > 0 Then MenuIcon = " imageMso=""" & Core_XmlEscape(nm) & """"
-End Function
 
 Public Sub Digit_OnMoreItem(ByVal control As IRibbonControl)
     App_RunGroup control.Tag
@@ -183,17 +187,13 @@ Public Sub Digit_OnCheckUpdates(ByVal control As IRibbonControl)
     App_CheckForUpdates False
 End Sub
 
-Public Sub Digit_GetUpdateImage(ByVal control As IRibbonControl, ByRef returnedVal)
+Private Function UpdateIcon() As String
     Dim nm As Variant
-    For Each nm In Array("SoftwareUpdate", "DownloadToComputer", "UpdateFolder", "Refresh")
-        If UI_IsOfficeIcon(CStr(nm)) Then returnedVal = CStr(nm): Exit Sub
+    For Each nm In Array("SoftwareUpdate", "DownloadToComputer", "UpdateFolder")
+        If UI_IsOfficeIcon(CStr(nm)) Then UpdateIcon = CStr(nm): Exit Function
     Next nm
-    returnedVal = "Refresh"
-End Sub
-
-Public Sub Digit_GetVersionLabel(ByVal control As IRibbonControl, ByRef returnedVal)
-    returnedVal = "Version " & DIGIT_VERSION
-End Sub
+    UpdateIcon = "Refresh"
+End Function
 
 Public Sub Digit_OnReload(ByVal control As IRibbonControl)
     App_ReloadPresets

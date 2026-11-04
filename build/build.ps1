@@ -131,7 +131,9 @@ function Restore-VbomAccess {
 #------------------------------------------------------------------------------
 # customUI injection (an .xlam is a zip package)
 #------------------------------------------------------------------------------
-function Add-CustomUI([string]$packagePath, [string]$customUiPath) {
+# Ribbon images: every src\ribbon\images\<name>.png becomes customUI/images/<name>.png,
+# referenced from customUI14.xml as image="<name>".
+function Add-CustomUI([string]$packagePath, [string]$customUiPath, [string]$imagesDir) {
     Add-Type -AssemblyName System.IO.Compression
     Add-Type -AssemblyName System.IO.Compression.FileSystem
 
@@ -152,6 +154,33 @@ function Add-CustomUI([string]$packagePath, [string]$customUiPath) {
         $bytes = [IO.File]::ReadAllBytes($customUiPath)
         $stream = $entry.Open()
         try { $stream.Write($bytes, 0, $bytes.Length) } finally { $stream.Dispose() }
+
+        # Custom images and the customUI part's own relationships file.
+        $pngs = @()
+        if ($imagesDir -and (Test-Path $imagesDir)) { $pngs = @(Get-ChildItem $imagesDir -Filter '*.png') }
+        if ($pngs.Count -gt 0) {
+            $imgRelType = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image'
+            $sb = New-Object Text.StringBuilder
+            [void]$sb.Append('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>')
+            [void]$sb.Append("<Relationships xmlns=`"$relNs`">")
+            foreach ($png in $pngs) {
+                $imgPart = "customUI/images/$($png.Name)"
+                $oldImg = $zip.GetEntry($imgPart)
+                if ($null -ne $oldImg) { $oldImg.Delete() }
+                $imgEntry = $zip.CreateEntry($imgPart)
+                $imgBytes = [IO.File]::ReadAllBytes($png.FullName)
+                $s = $imgEntry.Open()
+                try { $s.Write($imgBytes, 0, $imgBytes.Length) } finally { $s.Dispose() }
+                [void]$sb.Append("<Relationship Id=`"$($png.BaseName)`" Type=`"$imgRelType`" Target=`"images/$($png.Name)`"/>")
+            }
+            [void]$sb.Append('</Relationships>')
+            $uiRelsPart = 'customUI/_rels/customUI14.xml.rels'
+            $oldRels = $zip.GetEntry($uiRelsPart)
+            if ($null -ne $oldRels) { $oldRels.Delete() }
+            $relBytes = $utf8.GetBytes($sb.ToString())
+            $s = $zip.CreateEntry($uiRelsPart).Open()
+            try { $s.Write($relBytes, 0, $relBytes.Length) } finally { $s.Dispose() }
+        }
 
         # Package relationship pointing at the ribbon part.
         $relsEntry = $zip.GetEntry('_rels/.rels')
@@ -184,16 +213,22 @@ function Add-CustomUI([string]$packagePath, [string]$customUiPath) {
         try { $ctText = $reader.ReadToEnd() } finally { $reader.Dispose() }
         $ct = New-Object Xml.XmlDocument
         $ct.LoadXml($ctText)
-        $hasXml = $false
-        foreach ($node in @($ct.DocumentElement.ChildNodes)) {
-            if ($node.NodeType -eq [Xml.XmlNodeType]::Element -and $node.LocalName -eq 'Default' -and
-                $node.GetAttribute('Extension') -eq 'xml') { $hasXml = $true }
+        $ctChanged = $false
+        foreach ($pair in @(@('xml', 'application/xml'), @('png', 'image/png'))) {
+            $has = $false
+            foreach ($node in @($ct.DocumentElement.ChildNodes)) {
+                if ($node.NodeType -eq [Xml.XmlNodeType]::Element -and $node.LocalName -eq 'Default' -and
+                    $node.GetAttribute('Extension') -eq $pair[0]) { $has = $true }
+            }
+            if (-not $has) {
+                $def = $ct.CreateElement('Default', $ct.DocumentElement.NamespaceURI)
+                $def.SetAttribute('Extension', $pair[0])
+                $def.SetAttribute('ContentType', $pair[1])
+                [void]$ct.DocumentElement.PrependChild($def)
+                $ctChanged = $true
+            }
         }
-        if (-not $hasXml) {
-            $def = $ct.CreateElement('Default', $ct.DocumentElement.NamespaceURI)
-            $def.SetAttribute('Extension', 'xml')
-            $def.SetAttribute('ContentType', 'application/xml')
-            [void]$ct.DocumentElement.PrependChild($def)
+        if ($ctChanged) {
             $ctEntry.Delete()
             $newCt = $zip.CreateEntry('[Content_Types].xml')
             $writer = New-Object IO.StreamWriter($newCt.Open(), $utf8)
@@ -353,7 +388,7 @@ try {
     [GC]::Collect(); [GC]::WaitForPendingFinalizers()
 
     Write-Step 'Injecting ribbon (customUI14.xml)'
-    Add-CustomUI $XlamPath (Join-Path $Root 'src\ribbon\customUI14.xml')
+    Add-CustomUI $XlamPath (Join-Path $Root 'src\ribbon\customUI14.xml') (Join-Path $Root 'src\ribbon\images')
 
     Write-Host ''
     Write-Host "Built $XlamPath" -ForegroundColor Green
