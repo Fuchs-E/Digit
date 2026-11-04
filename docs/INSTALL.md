@@ -32,7 +32,7 @@ If you can't run the script, see [MANUAL_BUILD.md](MANUAL_BUILD.md).
 2. In Excel, go to **File > Options > Add-ins**. At the bottom, set **Manage** to **Excel Add-ins** and click **Go...**.
 3. Click **Browse...**, select `Digit.xlam`, and click **OK**. Make sure **Digit** is ticked.
 
-From then on, Excel loads Digit at every start, and the **Digit** group appears on the **Home** tab, right after **Number**.
+From then on, Excel loads Digit at every start, and the **Digit** tab appears next to **Home**.
 
 ## 3. Trust Center and security
 
@@ -60,7 +60,7 @@ Close Excel, replace `Digit.xlam` with the new build (or run the build again wit
 
 | Symptom | Fix |
 |---|---|
-| No Digit group on Home | Check that Digit is ticked in the Excel Add-ins dialog. If it is listed under **Disabled Items** (**File > Options > Add-ins > Manage: Disabled Items**), enable it. Check the Trust Center notes above. |
+| No Digit tab | Check that Digit is ticked in the Excel Add-ins dialog. If it is listed under **Disabled Items** (**File > Options > Add-ins > Manage: Disabled Items**), enable it. Check the Trust Center notes above. |
 | Ribbon errors at start-up | Turn on **File > Options > Advanced > General > Show add-in user interface errors** to see the details. |
 | Shortcut does nothing | Another add-in may use the same keys, or a keyboard layout may turn Ctrl+Alt into AltGr. Pick another shortcut in Settings. |
 | "Presets file could not be read" | The file has a JSON error. Digit renamed it to `presets.invalid-<date>.json` and created starter presets. Fix the old file and import it from Settings. |

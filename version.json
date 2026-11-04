@@ -1,4 +1,4 @@
 {
-  "version": "1.3.0",
-  "notes": "Digit moves to the Home tab, right after Number: five small quick buttons, Undo Format in the bottom-right spot, and the Digit menu. The separate Digit tab is gone."
+  "version": "1.2.0",
+  "notes": "The quick buttons are now the first five groups in Settings: use Move up / Move down to reorder the ribbon (your current buttons are kept). Fixes button pictures looking broken after changing them in Settings."
 }

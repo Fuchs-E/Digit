@@ -8,38 +8,41 @@
 <customUI xmlns="http://schemas.microsoft.com/office/2009/07/customui" onLoad="Digit_RibbonOnLoad">
   <ribbon>
     <tabs>
-      <!-- Digit is a group on the Home tab, right after Excel's Number group.
-           Small buttons stack three to a column: quick buttons 1-3, then 4, 5
-           and Undo Format (bottom right). The large Digit menu sits on the
-           right. When the window is narrow, Excel collapses the group to the
-           Digit icon. Quick-button pictures come from each group's "icon". -->
-      <tab idMso="TabHome">
-        <group id="grpDigit" label="Digit" image="digitIcon" insertAfterMso="GroupNumber">
-          <button id="btnDigitQuick1" tag="1" label=" " showLabel="false" getImage="Digit_GetImage"
-                  getVisible="Digit_GetVisible" getScreentip="Digit_GetScreentip" getSupertip="Digit_GetSupertip"
+      <tab id="tabDigit" label="Digit" insertAfterMso="TabHome">
+
+        <!-- Large icon-only buttons; the group name shows as the tooltip. Excel
+             ignores showLabel="false" on large buttons, so the label is a blank. Each
+             button's picture comes from its group's "icon" (an Office icon name). -->
+        <group id="grpDigitQuick" label="Quick formats">
+          <button id="btnDigitQuick1" tag="1" size="large" label=" " getImage="Digit_GetImage" getVisible="Digit_GetVisible"
+                  getScreentip="Digit_GetScreentip" getSupertip="Digit_GetSupertip"
                   onAction="Digit_OnQuick"/>
-          <button id="btnDigitQuick2" tag="2" label=" " showLabel="false" getImage="Digit_GetImage"
-                  getVisible="Digit_GetVisible" getScreentip="Digit_GetScreentip" getSupertip="Digit_GetSupertip"
+          <button id="btnDigitQuick2" tag="2" size="large" label=" " getImage="Digit_GetImage" getVisible="Digit_GetVisible"
+                  getScreentip="Digit_GetScreentip" getSupertip="Digit_GetSupertip"
                   onAction="Digit_OnQuick"/>
-          <button id="btnDigitQuick3" tag="3" label=" " showLabel="false" getImage="Digit_GetImage"
-                  getVisible="Digit_GetVisible" getScreentip="Digit_GetScreentip" getSupertip="Digit_GetSupertip"
+          <button id="btnDigitQuick3" tag="3" size="large" label=" " getImage="Digit_GetImage" getVisible="Digit_GetVisible"
+                  getScreentip="Digit_GetScreentip" getSupertip="Digit_GetSupertip"
                   onAction="Digit_OnQuick"/>
-          <button id="btnDigitQuick4" tag="4" label=" " showLabel="false" getImage="Digit_GetImage"
-                  getVisible="Digit_GetVisible" getScreentip="Digit_GetScreentip" getSupertip="Digit_GetSupertip"
+          <button id="btnDigitQuick4" tag="4" size="large" label=" " getImage="Digit_GetImage" getVisible="Digit_GetVisible"
+                  getScreentip="Digit_GetScreentip" getSupertip="Digit_GetSupertip"
                   onAction="Digit_OnQuick"/>
-          <button id="btnDigitQuick5" tag="5" label=" " showLabel="false" getImage="Digit_GetImage"
-                  getVisible="Digit_GetVisible" getScreentip="Digit_GetScreentip" getSupertip="Digit_GetSupertip"
+          <button id="btnDigitQuick5" tag="5" size="large" label=" " getImage="Digit_GetImage" getVisible="Digit_GetVisible"
+                  getScreentip="Digit_GetScreentip" getSupertip="Digit_GetSupertip"
                   onAction="Digit_OnQuick"/>
-          <button id="btnDigitUndo" label="Undo Format" showLabel="false" imageMso="Undo"
+        </group>
+
+        <group id="grpDigitTools" label="Digit">
+          <button id="btnDigitUndo" label="Undo Format" size="large" imageMso="Undo"
                   screentip="Undo Format" getSupertip="Digit_GetUndoSupertip"
                   getEnabled="Digit_GetUndoEnabled" onAction="Digit_OnUndo"/>
-          <!-- Everything else: groups 6 onwards, Settings, Reload, Check for
-               updates and the version (built in Digit_GetMenuContent). -->
+          <!-- One menu for everything else: other presets, Settings, Reload,
+               Check for updates and the version (built in Digit_GetMenuContent). -->
           <dynamicMenu id="mnuDigit" label="Digit" size="large" image="digitIcon"
                        screentip="Digit"
                        supertip="More presets, Settings, Reload presets and Check for updates."
                        getContent="Digit_GetMenuContent" invalidateContentOnDrop="true"/>
         </group>
+
       </tab>
     </tabs>
   </ribbon>
