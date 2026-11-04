@@ -46,6 +46,7 @@ Public Function RunAllTests(Optional ByVal tempFolder As String = "") As String
     Test_TableColumn
     Test_ProtectedSheet
     Test_PivotDataField
+    Test_SettingsForm
     GoTo Finish
 
 Crash:
@@ -167,6 +168,20 @@ Private Sub Test_Versions()
     CheckEq Core_CompareVersions("1.9", "1.10"), -1, "version numeric not text"
     CheckEq Core_CompareVersions("1.1", "1.1.0"), 0, "version missing part is 0"
     CheckEq Core_CompareVersions("", "0.0.1"), -1, "version blank"
+End Sub
+
+' Loads the Settings window without showing it: runs its start-up code
+' (presets, format list, icon grid) so errors there fail the build.
+Private Sub Test_SettingsForm()
+    Dim f As Object, n As Long, k As Long
+    Set f = New frmDigitSettings
+    Check f.Controls("lstGroups").ListCount > 0, "settings lists the preset groups"
+    For k = 1 To 66
+        If f.Controls("imgPick" & k).Visible Then n = n + 1
+    Next k
+    Check n > 0, "settings icon grid has pictures"
+    Check Not f.Controls("fraIcons").Visible, "icon picker starts closed"
+    Unload f
 End Sub
 
 Private Sub Test_Collections()

@@ -12,6 +12,7 @@
 Option Explicit
 
 Private Const SAMPLE_DEFAULT As Double = 1234567.891
+Private Const ICON_CELLS As Long = 66          ' imgPick1..66, created by DigitFormBuilder
 
 Private mCfg As Scripting.Dictionary     ' working copy
 Private mLoading As Boolean              ' true while the code fills controls
@@ -478,8 +479,6 @@ End Sub
 '------------------------------------------------------------------------------
 ' Button picture (Office icon name) of the selected group
 '------------------------------------------------------------------------------
-
-Private Const ICON_CELLS As Long = 66
 
 ' Fills the picker grid with the suggested icons this Office version has.
 Private Sub FillIconSuggestions()

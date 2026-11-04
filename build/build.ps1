@@ -205,6 +205,30 @@ function Add-CustomUI([string]$packagePath, [string]$customUiPath) {
 }
 
 #------------------------------------------------------------------------------
+# Source check: VBA only allows declarations (Const, Dim, Declare, Type, Enum)
+# before the first procedure. Excel reports a misplaced one as a compile error
+# only when the module is first used, which the self-tests may never do, so
+# catch it here with the file and line.
+#------------------------------------------------------------------------------
+function Test-VbaLayout([string[]]$paths) {
+    $problems = @()
+    foreach ($path in $paths) {
+        $inProcs = $false
+        $n = 0
+        foreach ($line in [IO.File]::ReadAllLines($path)) {
+            $n++
+            if ($line -match '^\s*((Public|Private|Friend)\s+)?(Static\s+)?(Sub|Function|Property)\s') { $inProcs = $true; continue }
+            if ($inProcs -and $line -match '^((Public|Private|Global)\s+)?(Const|Dim|Declare|Type|Enum)\s') {
+                $problems += "$(Split-Path $path -Leaf) line ${n}: $($line.Trim())"
+            }
+        }
+    }
+    if ($problems.Count -gt 0) {
+        throw ("Declarations must come before the first Sub or Function (VBA compile error):`n    " + ($problems -join "`n    "))
+    }
+}
+
+#------------------------------------------------------------------------------
 # Build
 #------------------------------------------------------------------------------
 $excel = $null
@@ -215,6 +239,10 @@ New-Item -ItemType Directory -Path $TempDir -Force | Out-Null
 New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
 
 try {
+    Write-Step 'Checking sources'
+    Test-VbaLayout (@(Get-ChildItem (Join-Path $Root 'src\vba') -Filter '*.bas' | ForEach-Object FullName) +
+                    @(Get-ChildItem (Join-Path $Root 'src') -Recurse -Filter '*.code.vba' | ForEach-Object FullName))
+
     if ($AllowVbomAccess) { Enable-VbomAccess }
 
     if (Test-Path $XlamPath) {
