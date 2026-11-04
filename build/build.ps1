@@ -244,7 +244,26 @@ try {
     Write-Step 'Adding reference: Microsoft Scripting Runtime'
     $hasScripting = $false
     foreach ($ref in $vbp.References) { if ($ref.Name -eq 'Scripting') { $hasScripting = $true } }
-    if (-not $hasScripting) { [void]$vbp.References.AddFromGuid('{420B2830-E718-11CF-893D-00C04FD7AC20}', 1, 0) }
+    if (-not $hasScripting) {
+        # Try the registered type library first (exact version, then latest), and fall back to
+        # loading scrrun.dll directly. Some PCs report "Object library not registered" for the
+        # GUID lookup. In 32-bit Excel, System32 is redirected to SysWOW64 automatically.
+        $guid = '{420B2830-E718-11CF-893D-00C04FD7AC20}'
+        $dll  = Join-Path $env:windir 'System32\scrrun.dll'
+        $attempts = @(
+            @{ Name = 'GUID 1.0';    Run = { [void]$vbp.References.AddFromGuid($guid, 1, 0) } },
+            @{ Name = 'GUID latest'; Run = { [void]$vbp.References.AddFromGuid($guid, 0, 0) } },
+            @{ Name = $dll;          Run = { [void]$vbp.References.AddFromFile($dll) } }
+        )
+        $added = $false; $errors = @()
+        foreach ($a in $attempts) {
+            try { & $a.Run; $added = $true; Write-Host "    added via $($a.Name)"; break }
+            catch { $errors += "$($a.Name): $($_.Exception.Message)" }
+        }
+        if (-not $added) {
+            throw ("Could not add the Microsoft Scripting Runtime reference.`n    " + ($errors -join "`n    "))
+        }
+    }
 
     Write-Step 'Importing modules'
     $modules = @(Get-Item (Join-Path $Root 'lib\JsonConverter.bas')) +
