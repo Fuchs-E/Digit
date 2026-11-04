@@ -72,7 +72,7 @@ Click **Digit > Check for updates**. Digit also checks once a day, about 20 seco
 
 When you agree to an update, Digit:
 
-1. Downloads the source of the latest release from <https://github.com/Fuchs-E/Digit/releases>.
+1. Downloads the source of the latest version from the `release` branch of <https://github.com/Fuchs-E/Digit>.
 2. Builds and tests it in the background with a separate, hidden Excel. You can keep working.
 3. Waits until you close Excel, then replaces the installed `Digit.xlam`. A message confirms it.
 

@@ -36,13 +36,14 @@ function Show([string]$text, [string]$icon = 'Information') {
 try {
     Log "---- Update to $Tag (Excel process $ExcelPid, add-in $Dest)"
 
-    # 1. The release must contain the version it claims, or Digit would offer
-    #    the same update again after installing it.
+    # 1. The source must contain the version that was offered, or Digit would
+    #    offer the same update again after installing it. (The release branch
+    #    may also have moved on since the check; then simply check again.)
     $appSource = Get-Content -LiteralPath (Join-Path $Root 'src\vba\DigitApp.bas') -Raw
     if ($appSource -notmatch 'DIGIT_VERSION As String = "([^"]+)"') { throw 'DIGIT_VERSION not found in the release source.' }
     $version = $Matches[1]
     if ($Tag.TrimStart('v', 'V') -ne $version) {
-        throw "Release $Tag contains version $version. The release is mislabelled, so it was not installed."
+        throw "Digit $Tag was offered, but the download contains version $version, so it was not installed. Click Check for updates again."
     }
 
     # 2. Build and test.

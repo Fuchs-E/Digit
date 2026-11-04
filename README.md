@@ -41,7 +41,7 @@ src/
     DigitCore.bas                 Pure logic: cycle rules, colours, shortcuts (no Excel objects)
     DigitFormat.bas               Engine: targeting, choosing the next preset, applying (no UI)
     DigitUndo.bas                 Undo snapshots and history (no UI)
-    DigitUpdate.bas               Checks GitHub releases and starts the installer (no UI)
+    DigitUpdate.bas               Checks the release branch for updates and starts the installer (no UI)
     DigitStore.bas                presets.json: load, save, defaults, validation
     DigitRibbon.bas               Ribbon callbacks
     DigitApp.bas                  Start-up, shortcuts, messages, Ctrl+Z wiring
@@ -55,6 +55,7 @@ build/
   install-update.ps1              Builds, tests and installs an update in the background
 lib/JsonConverter.bas             VBA-JSON 2.3.1 (MIT), Tim Hall
 presets/presets.sample.json       The starter presets, written on first run
+version.json                      Latest published version, read by Check for updates (on the release branch)
 docs/                             Install, presets schema, manual build, architecture
 ```
 

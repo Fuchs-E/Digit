@@ -1,9 +1,10 @@
 Attribute VB_Name = "DigitUpdate"
 '==============================================================================
-' DigitUpdate - finds and installs new versions from GitHub releases.
+' DigitUpdate - finds and installs new versions from GitHub.
 '
-' A release is a tag such as v1.2.0 on the public repository. There is no
-' prebuilt .xlam to download: the source of the release is downloaded and
+' The "release" branch of the public repository is the update channel: its
+' version.json holds the latest version and its notes. There is no prebuilt
+' .xlam to download: the source on that branch is downloaded and
 ' build\install-update.ps1 (from that same source) builds it with Excel in the
 ' background, runs the self-tests, waits for this Excel to close and then
 ' replaces the installed add-in. If the build or a test fails, nothing is
@@ -14,7 +15,9 @@ Attribute VB_Name = "DigitUpdate"
 Option Explicit
 
 Public Const DIGIT_REPO As String = "Fuchs-E/Digit"
-Private Const API_LATEST As String = "https://api.github.com/repos/" & DIGIT_REPO & "/releases/latest"
+Public Const DIGIT_RELEASE_BRANCH As String = "release"
+Private Const URL_VERSION As String = "https://raw.githubusercontent.com/" & DIGIT_REPO & "/" & DIGIT_RELEASE_BRANCH & "/version.json"
+Private Const URL_SOURCE As String = "https://codeload.github.com/" & DIGIT_REPO & "/zip/refs/heads/" & DIGIT_RELEASE_BRANCH
 Private Const USER_AGENT As String = "Digit-Excel-Addin"
 Private Const REG_APP As String = "Digit"
 Private Const REG_SECTION As String = "Update"
@@ -22,12 +25,13 @@ Private Const REG_SECTION As String = "Update"
 Private Declare PtrSafe Function GetWindowThreadProcessId Lib "user32" _
     (ByVal hwnd As LongPtr, ByRef lpdwProcessId As Long) As Long
 
-' Latest published release. Returns False with errMsg when it cannot be read.
+' Latest published version (from version.json). Returns False with errMsg when
+' it cannot be read.
 Public Function Update_FetchLatest(ByRef tag As String, ByRef notes As String, ByRef pageUrl As String, _
                                    ByRef errMsg As String) As Boolean
     Dim status As Long, body As String, json As Object
 
-    If Not HttpGetText(API_LATEST, status, body, errMsg) Then Exit Function
+    If Not HttpGetText(URL_VERSION, status, body, errMsg) Then Exit Function
     Select Case status
         Case 200
         Case 404
@@ -43,11 +47,13 @@ Public Function Update_FetchLatest(ByRef tag As String, ByRef notes As String, B
 
     On Error GoTo BadJson
     Set json = JsonConverter.ParseJson(body)
-    tag = CStr(json("tag_name"))
-    pageUrl = CStr(json("html_url"))
-    If Not IsNull(json("body")) Then notes = CStr(json("body"))
+    tag = CStr(json("version"))
+    pageUrl = "https://github.com/" & DIGIT_REPO & "/tree/" & DIGIT_RELEASE_BRANCH
+    If json.Exists("notes") Then
+        If Not IsNull(json("notes")) Then notes = CStr(json("notes"))
+    End If
     Update_FetchLatest = (Len(tag) > 0)
-    If Not Update_FetchLatest Then errMsg = "The latest release has no version tag."
+    If Not Update_FetchLatest Then errMsg = "The published version.json has no version number."
     Exit Function
 BadJson:
     errMsg = "Could not read GitHub's answer: " & Err.Description
@@ -65,7 +71,7 @@ Public Function Update_Start(ByVal tag As String, ByRef errMsg As String) As Boo
     workDir = folder & "\src-" & SafeName(tag)
     logPath = folder & "\update.log"
 
-    If Not HttpDownload("https://api.github.com/repos/" & DIGIT_REPO & "/zipball/" & tag, zipPath, errMsg) Then Exit Function
+    If Not HttpDownload(URL_SOURCE, zipPath, errMsg) Then Exit Function
 
     GetWindowThreadProcessId CLngPtr(Application.Hwnd), pid
 
