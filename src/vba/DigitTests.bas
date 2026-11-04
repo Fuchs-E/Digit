@@ -36,6 +36,7 @@ Public Function RunAllTests(Optional ByVal tempFolder As String = "") As String
     Test_Colors
     Test_Shortcuts
     Test_XmlEscape
+    Test_Versions
     Test_Collections
     Test_Normalize
     Test_StoreRoundTrip
@@ -158,6 +159,14 @@ End Sub
 Private Sub Test_XmlEscape()
     CheckEq Core_XmlEscape("A&B <""x"">"), "A&amp;B &lt;&quot;x&quot;&gt;", "xml escape"
     CheckEq Core_RibbonLabel("P&L"), "P&&L", "ribbon ampersand"
+End Sub
+
+Private Sub Test_Versions()
+    CheckEq Core_CompareVersions("1.0.0", "1.0.0"), 0, "version equal"
+    CheckEq Core_CompareVersions("v1.2.0", "1.1.9"), 1, "version newer, leading v"
+    CheckEq Core_CompareVersions("1.9", "1.10"), -1, "version numeric not text"
+    CheckEq Core_CompareVersions("1.1", "1.1.0"), 0, "version missing part is 0"
+    CheckEq Core_CompareVersions("", "0.0.1"), -1, "version blank"
 End Sub
 
 Private Sub Test_Collections()

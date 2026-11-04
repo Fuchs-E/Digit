@@ -6,7 +6,7 @@ Attribute VB_Name = "DigitApp"
 '==============================================================================
 Option Explicit
 
-Public Const DIGIT_VERSION As String = "1.0.0"
+Public Const DIGIT_VERSION As String = "1.1.0"
 Public Const DIGIT_TITLE As String = "Digit"
 
 Private mStarted As Boolean
@@ -33,6 +33,7 @@ Public Sub Digit_Startup()
         ' A hidden Excel (automation, build tests) must never block on a dialog.
         If Application.Visible Then MsgBox note, vbExclamation, DIGIT_TITLE Else Debug.Print note
     End If
+    ScheduleAutoUpdateCheck
 End Sub
 
 Public Sub Digit_Shutdown()
@@ -219,6 +220,78 @@ Public Sub Digit_ClearStatus()
     ' Leave the status bar alone if something else has written to it since.
     If Application.StatusBar = mStatusText Then Application.StatusBar = False
     mStatusText = ""
+End Sub
+
+'------------------------------------------------------------------------------
+' Updates
+'------------------------------------------------------------------------------
+
+' Once a day, shortly after Excel starts, look for a new release. Never in a
+' hidden Excel (builds, tests) and never when turned off in presets.json.
+Private Sub ScheduleAutoUpdateCheck()
+    On Error Resume Next
+    If Not Application.Visible Then Exit Sub
+    If Not Store_CheckForUpdates(Store_Config()) Then Exit Sub
+    If Update_GetSetting("LastCheck") = Format$(Date, "yyyy-mm-dd") Then Exit Sub
+    Application.OnTime Now + TimeSerial(0, 0, 20), Qualified("Digit_AutoUpdateCheck")
+End Sub
+
+Public Sub Digit_AutoUpdateCheck()
+    App_CheckForUpdates True
+End Sub
+
+' silent = True: automatic daily check. Says nothing unless there is a new
+' version, and does not offer a version the user chose to skip.
+Public Sub App_CheckForUpdates(ByVal silent As Boolean)
+    Dim tag As String, notes As String, pageUrl As String, errMsg As String
+    Dim prompt As String, answer As VbMsgBoxResult
+
+    Digit_Startup
+    Update_SaveSetting "LastCheck", Format$(Date, "yyyy-mm-dd")
+    If Not silent Then App_SetStatus "Digit: checking for updates..."
+
+    If Not Update_FetchLatest(tag, notes, pageUrl, errMsg) Then
+        If Not silent Then MsgBox "Digit could not check for updates." & vbCrLf & vbCrLf & errMsg, vbExclamation, DIGIT_TITLE
+        Exit Sub
+    End If
+
+    If Core_CompareVersions(tag, DIGIT_VERSION) <= 0 Then
+        If Not silent Then MsgBox "You have the latest version of Digit (" & DIGIT_VERSION & ").", vbInformation, DIGIT_TITLE
+        Exit Sub
+    End If
+
+    If Update_GetSetting("Pending") = tag Then
+        If Not silent Then
+            MsgBox "Digit " & tag & " is already being installed." & vbCrLf & vbCrLf & _
+                   "Close Excel to finish. If you already did and it did not install, see:" & vbCrLf & _
+                   Store_Folder() & "\update\update.log", vbInformation, DIGIT_TITLE
+        End If
+        Exit Sub
+    End If
+    If silent And Update_GetSetting("Skip") = tag Then Exit Sub
+
+    prompt = "Digit " & tag & " is available. You have " & DIGIT_VERSION & "." & vbCrLf & vbCrLf
+    If Len(Trim$(notes)) > 0 Then prompt = prompt & "What's new:" & vbCrLf & Left$(Trim$(notes), 600) & vbCrLf & vbCrLf
+    prompt = prompt & "Install it now? Digit builds and tests it in the background (about a minute), " & _
+                      "then installs it when you close Excel. You can keep working."
+    If silent Then
+        prompt = prompt & vbCrLf & vbCrLf & "Yes = install    No = remind me tomorrow    Cancel = skip this version"
+        answer = MsgBox(prompt, vbQuestion + vbYesNoCancel, DIGIT_TITLE)
+        If answer = vbCancel Then Update_SaveSetting "Skip", tag
+    Else
+        answer = MsgBox(prompt, vbQuestion + vbYesNo, DIGIT_TITLE)
+    End If
+    If answer <> vbYes Then Exit Sub
+
+    App_SetStatus "Digit: downloading " & tag & "..."
+    If Not Update_Start(tag, errMsg) Then
+        MsgBox "Digit could not start the update." & vbCrLf & vbCrLf & errMsg, vbExclamation, DIGIT_TITLE
+        Exit Sub
+    End If
+    Update_SaveSetting "Pending", tag
+    MsgBox "Digit " & tag & " is being built and tested in the background." & vbCrLf & vbCrLf & _
+           "Keep working. When you next close Excel, it is installed, and a message confirms it." & vbCrLf & _
+           "If anything fails, your current version stays as it is.", vbInformation, DIGIT_TITLE
 End Sub
 
 ' "'Digit.xlam'!Proc" so OnKey / OnUndo / OnTime always find the add-in's macro.

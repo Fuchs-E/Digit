@@ -318,3 +318,31 @@ Public Sub Coll_Swap(ByVal coll As Collection, ByVal i As Long, ByVal j As Long)
     Coll_ReplaceAt coll, i, b
     Coll_ReplaceAt coll, j, a
 End Sub
+
+'------------------------------------------------------------------------------
+' Versions
+'------------------------------------------------------------------------------
+
+' Compares "1.2.3" style versions (a leading "v" is ignored, missing parts count
+' as 0, non-numeric parts as 0). Returns -1 when a < b, 0 when equal, 1 when a > b.
+Public Function Core_CompareVersions(ByVal a As String, ByVal b As String) As Long
+    Dim pa() As String, pb() As String, i As Long, n As Long, va As Long, vb As Long
+    pa = Split(Core_StripV(a), ".")
+    pb = Split(Core_StripV(b), ".")
+    n = UBound(pa)
+    If UBound(pb) > n Then n = UBound(pb)
+    For i = 0 To n
+        va = 0: vb = 0
+        If i <= UBound(pa) Then If IsNumeric(pa(i)) Then va = CLng(pa(i))
+        If i <= UBound(pb) Then If IsNumeric(pb(i)) Then vb = CLng(pb(i))
+        If va < vb Then Core_CompareVersions = -1: Exit Function
+        If va > vb Then Core_CompareVersions = 1: Exit Function
+    Next i
+End Function
+
+Private Function Core_StripV(ByVal s As String) As String
+    s = Trim$(s)
+    If LCase$(Left$(s, 1)) = "v" Then s = Mid$(s, 2)
+    If Len(s) = 0 Then s = "0"
+    Core_StripV = s
+End Function

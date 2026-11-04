@@ -179,6 +179,22 @@ Public Sub Digit_OnSettings(ByVal control As IRibbonControl)
     App_ShowSettings
 End Sub
 
+Public Sub Digit_OnCheckUpdates(ByVal control As IRibbonControl)
+    App_CheckForUpdates False
+End Sub
+
+Public Sub Digit_GetUpdateImage(ByVal control As IRibbonControl, ByRef returnedVal)
+    Dim nm As Variant
+    For Each nm In Array("SoftwareUpdate", "DownloadToComputer", "UpdateFolder", "Refresh")
+        If UI_IsOfficeIcon(CStr(nm)) Then returnedVal = CStr(nm): Exit Sub
+    Next nm
+    returnedVal = "Refresh"
+End Sub
+
+Public Sub Digit_GetVersionLabel(ByVal control As IRibbonControl, ByRef returnedVal)
+    returnedVal = "Version " & DIGIT_VERSION
+End Sub
+
 Public Sub Digit_OnReload(ByVal control As IRibbonControl)
     App_ReloadPresets
 End Sub

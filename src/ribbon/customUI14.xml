@@ -58,6 +58,9 @@
                   screentip="Reload presets"
                   supertip="Read presets.json again, for example after editing it by hand or replacing it with a shared copy."
                   onAction="Digit_OnReload"/>
+          <button id="btnDigitUpdate" label="Check for updates" getImage="Digit_GetUpdateImage"
+                  screentip="Check for updates" getSupertip="Digit_GetVersionLabel"
+                  onAction="Digit_OnCheckUpdates"/>
         </group>
 
       </tab>

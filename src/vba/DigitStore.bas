@@ -258,6 +258,11 @@ Public Function Store_ShortcutsEnabled(ByVal cfg As Scripting.Dictionary) As Boo
     Store_ShortcutsEnabled = cfg("settings")("shortcutsEnabled")
 End Function
 
+Public Function Store_CheckForUpdates(ByVal cfg As Scripting.Dictionary) As Boolean
+    Store_CheckForUpdates = True
+    If cfg("settings").Exists("checkForUpdates") Then Store_CheckForUpdates = cfg("settings")("checkForUpdates")
+End Function
+
 Public Function Store_UndoDepth(ByVal cfg As Scripting.Dictionary) As Long
     Store_UndoDepth = cfg("settings")("undoDepth")
 End Function
@@ -376,6 +381,7 @@ Public Function Store_DefaultConfig() As Scripting.Dictionary
     settings("shortcutsEnabled") = True
     Set settings("shortcuts") = keys
     settings("undoDepth") = 10
+    settings("checkForUpdates") = True
 
     cfg("version") = DIGIT_FILE_VERSION
     Set cfg("settings") = settings
@@ -479,6 +485,7 @@ Public Function Store_Normalize(ByVal src As Object) As Scripting.Dictionary
     If depth < 1 Then depth = 1
     If depth > 50 Then depth = 50
     settings("undoDepth") = depth
+    settings("checkForUpdates") = DictBool(srcSettings, "checkForUpdates", True)
 
     cfg("version") = DIGIT_FILE_VERSION
     Set cfg("settings") = settings

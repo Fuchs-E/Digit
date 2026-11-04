@@ -17,6 +17,7 @@ Phase 1 (this repository) is a VBA add-in (`Digit.xlam`). Presets are kept in a 
 | **Undo Format** | Digit keeps its own history of the last 10 changes. Ctrl+Z works straight after a change. |
 | **Shortcuts** | Ctrl+Alt+1 … Ctrl+Alt+5 by default. You can change them in Settings. |
 | **Settings** | Create, rename, reorder and delete groups and presets. Includes a live preview, colour pickers, format checks, and import/export of presets. |
+| **Updates** | **Check for updates** on the Digit tab, plus a quiet daily check when Excel starts. A new version is built and tested in the background and installed when you close Excel. See [docs/INSTALL.md](docs/INSTALL.md#updates). |
 | **Storage** | `%APPDATA%\Digit\presets.json`. It survives add-in updates and can be shared with your team. |
 
 ## Quick start
@@ -40,6 +41,7 @@ src/
     DigitCore.bas                 Pure logic: cycle rules, colours, shortcuts (no Excel objects)
     DigitFormat.bas               Engine: targeting, choosing the next preset, applying (no UI)
     DigitUndo.bas                 Undo snapshots and history (no UI)
+    DigitUpdate.bas               Checks GitHub releases and starts the installer (no UI)
     DigitStore.bas                presets.json: load, save, defaults, validation
     DigitRibbon.bas               Ribbon callbacks
     DigitApp.bas                  Start-up, shortcuts, messages, Ctrl+Z wiring
@@ -50,6 +52,7 @@ src/
 build/
   build.ps1                       Builds Digit.xlam through Excel COM automation
   DigitFormBuilder.bas            Lays out the Settings form at build time (not shipped)
+  install-update.ps1              Builds, tests and installs an update in the background
 lib/JsonConverter.bas             VBA-JSON 2.3.1 (MIT), Tim Hall
 presets/presets.sample.json       The starter presets, written on first run
 docs/                             Install, presets schema, manual build, architecture
@@ -61,6 +64,7 @@ docs/                             Install, presets schema, manual build, archite
 - [docs/PRESETS.md](docs/PRESETS.md): the `presets.json` schema, and how cycling and targeting work
 - [docs/MANUAL_BUILD.md](docs/MANUAL_BUILD.md): building by hand with the VBA editor and Office RibbonX Editor
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): module layering and notes for the C# port
+- [docs/RELEASING.md](docs/RELEASING.md): publishing a new version so Digit can update itself
 
 ## License
 
