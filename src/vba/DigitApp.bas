@@ -12,6 +12,8 @@ Public Const DIGIT_TITLE As String = "Digit"
 Private mStarted As Boolean
 Private mKeys(1 To DIGIT_SLOT_COUNT) As String   ' OnKey codes currently registered
 Private mShortcutLabels(1 To DIGIT_SLOT_COUNT) As String
+Private mColourKey As String                     ' OnKey code registered for Colour by content
+Private mColourLabel As String
 Private mStatusText As String
 Private mStatusClearAt As Date
 
@@ -134,6 +136,35 @@ Public Sub DigitQuick4(): App_RunSlot 4: End Sub
 Public Sub DigitQuick5(): App_RunSlot 5: End Sub
 
 '------------------------------------------------------------------------------
+' Colour by content
+'------------------------------------------------------------------------------
+
+' The Colour by content button and its shortcut.
+Public Sub App_RunColour()
+    Dim res As DigitResult, msg As String
+
+    Digit_Startup
+    res = Fmt_ColourByContent(msg)
+
+    If res = drUndoTooBig Then
+        If MsgBox(msg & vbCrLf & vbCrLf & "Colour the cells anyway? It cannot be undone.", _
+                  vbExclamation + vbYesNo + vbDefaultButton2, DIGIT_TITLE) <> vbYes Then Exit Sub
+        res = Fmt_ColourByContent(msg, True)
+    End If
+
+    App_Report res, msg
+    If res = drOK Then App_AfterChange
+End Sub
+
+' Target for Application.OnKey (it must take no arguments).
+Public Sub DigitColourByContent(): App_RunColour: End Sub
+
+' Shortcut text for Colour by content if it is currently registered, else "".
+Public Function App_ColourShortcut() As String
+    App_ColourShortcut = mColourLabel
+End Function
+
+'------------------------------------------------------------------------------
 ' Keyboard shortcuts
 '------------------------------------------------------------------------------
 
@@ -157,6 +188,19 @@ Public Sub App_RegisterShortcuts()
             On Error GoTo 0
         End If
     Next i
+
+    ' Colour by content.
+    code = Core_ShortcutToOnKey(Store_ContentShortcut(cfg))
+    If Len(code) > 0 Then
+        On Error Resume Next
+        Err.Clear
+        Application.OnKey code, Qualified("DigitColourByContent")
+        If Err.Number = 0 Then
+            mColourKey = code
+            mColourLabel = Store_ContentShortcut(cfg)
+        End If
+        On Error GoTo 0
+    End If
 End Sub
 
 Public Sub App_UnregisterShortcuts()
@@ -167,6 +211,9 @@ Public Sub App_UnregisterShortcuts()
         mKeys(i) = ""
         mShortcutLabels(i) = ""
     Next i
+    If Len(mColourKey) > 0 Then Application.OnKey mColourKey
+    mColourKey = ""
+    mColourLabel = ""
 End Sub
 
 ' Shortcut text for a slot if it is currently registered, else "".

@@ -10,8 +10,8 @@
     <tabs>
       <!-- Digit is a group on the Home tab, right after Excel's Number group.
            Small buttons (the default) stack three to a column: quick buttons
-           1-3, then 4, 5 and Undo Format (bottom right). With "Large quick
-           buttons" in Settings, Digit_GetSize makes them large, one per
+           1-3, then 4, 5 and Undo Format, then Colour by content. With "Large
+           quick buttons" in Settings, Digit_GetSize makes them large, one per
            column. The large Digit menu sits on the right. When the window is narrow, Excel collapses the group to the
            Digit icon. Quick-button pictures come from each group's "icon". -->
       <tab idMso="TabHome">
@@ -34,6 +34,12 @@
           <button id="btnDigitUndo" label="Undo Format" showLabel="false" getSize="Digit_GetSize" imageMso="Undo"
                   screentip="Undo Format" getSupertip="Digit_GetUndoSupertip"
                   getEnabled="Digit_GetUndoEnabled" onAction="Digit_OnUndo"/>
+          <!-- Colour by content: font colour by what each selected cell holds
+               (input, formula, sheet link, external link). Colours and its
+               shortcut come from Settings. -->
+          <button id="btnDigitColour" label="Colour by content" showLabel="false" getSize="Digit_GetSize" image="colourIcon"
+                  getScreentip="Digit_GetColourScreentip" getSupertip="Digit_GetColourSupertip"
+                  onAction="Digit_OnColour"/>
           <!-- Everything else: groups 6 onwards, Settings, Reload, Check for
                updates and the version (built in Digit_GetMenuContent). -->
           <dynamicMenu id="mnuDigit" label="Digit" size="large" image="digitIcon"
