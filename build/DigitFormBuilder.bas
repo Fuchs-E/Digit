@@ -172,7 +172,7 @@ Public Sub BuildSettingsForm(ByVal codeFile As String)
     AddLabel fr, "lblKeyColour", 8, 15, 236, 12, "Colour by content"
     Set c = AddCtl(fr, "Forms.TextBox.1", "txtKeyColour", 250, 12, 140, 18)
     c.ControlTipText = "For example Ctrl+Alt+6. Leave blank for no shortcut."
-    Hint fr, "lblKeyColourHint", 8, 38, 600, 12, "Works when ""Enable keyboard shortcuts"" is ticked on the Ribbon && shortcuts tab."
+    Hint fr, "lblKeyColourHint", 8, 38, 600, 12, "Works when ""Enable keyboard shortcuts"" is ticked on the previous tab."
 
     Hint pg3, "lblCcNote", 8, 252, 608, 24, "Text, blank cells and pivot tables are always left alone. Undo Format puts the previous colours back."
 

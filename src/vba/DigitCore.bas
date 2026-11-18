@@ -384,9 +384,11 @@ End Function
 '             are keyed LCase(sheet) & "!" & LCase(name); tables are keyed by
 '             LCase(table name) with a target such as "='Sheet'!A1". Can be
 '             Nothing.
-'   sheets    LCase(sheet name) for every sheet in the workbook, so a qualifier
-'             that is not a sheet (Book.xlsx!Name) reads as external. Can be
-'             Nothing; every unbracketed qualifier then counts as a sheet.
+'   sheets    LCase(sheet name) -> True for every sheet in the workbook, so a
+'             qualifier that is not a sheet (Book.xlsx!Name) reads as external.
+'             The workbook's own name can be listed too, with any String as
+'             its value: it then makes no link. Can be Nothing; every
+'             unbracketed qualifier then counts as a sheet.
 '
 ' Text in double quotes is never read as a reference. The strongest kind wins:
 ' external, then sheet link, then formula. A formula made only of numbers and
@@ -608,6 +610,10 @@ Private Function Cls_Qualifier(ByVal q As String, ByVal ownLower As String, _
     If Not sheets Is Nothing Then
         If Not sheets.Exists(first) Then
             Cls_Qualifier = ckExternal  ' Book.xlsx!Name, PERSONAL.XLSB!MyFn
+            Exit Function
+        End If
+        If VarType(sheets(first)) = vbString Then
+            Cls_Qualifier = ckFormula   ' this workbook's own name, not a sheet
             Exit Function
         End If
     End If

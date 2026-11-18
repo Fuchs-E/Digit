@@ -267,6 +267,11 @@ Private Sub Test_Classify()
     CheckEq Core_ClassifyFormula("=Assumptions!C7", "Model", Nothing, Nothing), ckSheetLink, "classify: no sheet list"
     CheckEq Core_ClassifyFormula("=Model!C7", "model", Nothing, Nothing), ckFormula, "classify: own sheet, any case"
     CheckEq Core_ClassifyFormula("=Scoped", "Inputs", names, sheets), ckSheetLink, "classify: global name from another sheet"
+    sheets("bob's p&l") = True
+    CheckEq Core_ClassifyFormula("='Bob''s P&L'!A1", "Model", names, sheets), ckSheetLink, "classify: apostrophe in a sheet name"
+    sheets("model.xlsx") = "workbook"
+    CheckEq Core_ClassifyFormula("=Model.xlsx!TaxRate", "Model", names, sheets), ckFormula, "classify: this workbook's own name"
+    CheckEq Core_ClassifyFormula("=Other.xlsx!TaxRate", "Model", names, sheets), ckExternal, "classify: another workbook's name"
 End Sub
 
 Private Sub Test_Normalize()
@@ -697,6 +702,15 @@ Private Sub Test_ColourByContent()
     CheckEq ws.Range("A1").Font.Color, blue, "multi-area: first area"
     CheckEq ws.Range("B3").Font.Color, red, "multi-area: second area"
     CheckEq ws.Range("A2").Font.Color, pink, "multi-area: cells between are untouched"
+
+    ' One merged cell selected: only that cell.
+    ws.Range("G1").Value = 5
+    ws.Range("G1:H1").Merge
+    ws.Range("A1").Font.Color = pink
+    ws.Range("G1:H1").Select
+    CheckEq Fmt_ColourByContent(msg), drOK, "merged cell: " & msg
+    CheckEq ws.Range("G1").Font.Color, blue, "merged cell coloured"
+    CheckEq ws.Range("A1").Font.Color, pink, "merged cell: other cells untouched"
 
     ' Shape selected, then a protected sheet.
     ws.Shapes.AddShape(1, 10, 10, 20, 20).Select

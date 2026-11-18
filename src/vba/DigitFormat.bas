@@ -184,7 +184,7 @@ Public Function Fmt_ColourByContent(ByRef msg As String, Optional ByVal skipUndo
     Dim sel As Object, ws As Worksheet, used As Range, consts As Range, forms As Range
     Dim cfg As Scripting.Dictionary, colour(1 To DIGIT_CONTENT_KINDS) As Long, anyColour As Boolean
     Dim names As Scripting.Dictionary, sheets As Scripting.Dictionary, cache As New Scripting.Dictionary
-    Dim area As Range, cell As Range, piece As Variant, spill As Range, allParts As New Collection
+    Dim area As Range, cell As Range, piece As Variant, spill As Range, counted As Range, allParts As New Collection
     Dim entry As Scripting.Dictionary, prevScreen As Boolean, changed As Boolean, stage As String
     Dim k As Long
 
@@ -250,7 +250,9 @@ Public Function Fmt_ColourByContent(ByRef msg As String, Optional ByVal skipUndo
                     k = Cc_Kind(CStr(cell.FormulaR1C1), ws.Name, names, sheets, cache)
                     If colour(k) >= 0 Then
                         Cc_Add k, spill
-                        mCcCount(k) = mCcCount(k) - 1       ' the anchor cell was already counted
+                        ' Do not count twice the cells already listed as formulas.
+                        Set counted = Application.Intersect(spill, forms)
+                        If Not counted Is Nothing Then mCcCount(k) = mCcCount(k) - counted.CountLarge
                     End If
                 End If
             Next cell
@@ -349,6 +351,9 @@ Private Function ContentCells(ByVal r As Range, ByVal formulas As Boolean) As Ra
     Else
         Set found = r.SpecialCells(xlCellTypeConstants, xlNumbers + xlLogical + xlErrors)
     End If
+    ' Never beyond r, whatever SpecialCells searched (a lone merged cell counts
+    ' as one cell to it).
+    If Not found Is Nothing Then Set found = Application.Intersect(found, r)
     Set ContentCells = found
 End Function
 
@@ -414,6 +419,9 @@ Private Sub Cc_Lookups(ByVal wb As Workbook, ByRef names As Scripting.Dictionary
     For Each sh In wb.Sheets
         sheets(LCase$(sh.Name)) = True
     Next sh
+    ' The workbook's own name: Excel writes Book.xlsx!Name for a global name
+    ' that a sheet-level name hides. That is not a link to another file.
+    sheets(LCase$(wb.Name)) = "workbook"
 
     For Each nm In wb.Names
         key = ""
