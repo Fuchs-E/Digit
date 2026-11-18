@@ -1,7 +1,7 @@
 Attribute VB_Name = "DigitFormat"
 '==============================================================================
 ' DigitFormat - the formatting engine: what to format, which preset comes
-' next, and applying it.
+' next, and applying it. Also Colour by content (Fmt_ColourByContent).
 '
 ' This module uses the Excel object model but no UI: no MsgBox, no ribbon, no
 ' UserForm. It reports back through a DigitResult code and a message, and the
@@ -11,8 +11,17 @@ Attribute VB_Name = "DigitFormat"
 Option Explicit
 
 Private Const MAX_PIVOT_SCAN As Long = 5000   ' cells checked when a selection spans several pivot data fields
+Private Const MAX_SPILL_SCAN As Long = 5000   ' formula cells checked for dynamic array spills (Colour by content)
+Private Const CC_CHUNK_AREAS As Long = 500    ' areas per range when collecting cells to colour
 
 Private mCanon As Scripting.Dictionary       ' raw format -> format as Excel stores it
+
+' Colour by content, while one run is in progress: the cells of each kind
+' (index = DigitContentKind), as finished ranges, the range being built, and
+' the cell count.
+Private mCcParts(1 To DIGIT_CONTENT_KINDS) As Collection
+Private mCcPending(1 To DIGIT_CONTENT_KINDS) As Range
+Private mCcCount(1 To DIGIT_CONTENT_KINDS) As Double
 
 '------------------------------------------------------------------------------
 ' Main entry point
@@ -160,6 +169,409 @@ Fail:
     msg = "Digit could not apply the format." & vbCrLf & vbCrLf & errDesc & " (error " & errNum & _
           IIf(Len(stage) > 0, ", while " & stage, "") & ")"
     Fmt_ApplyGroup = drError
+End Function
+
+'------------------------------------------------------------------------------
+' Colour by content
+'------------------------------------------------------------------------------
+
+' Sets the font colour of every cell in the selection by what it contains:
+' typed numbers (inputs), formulas, links to other sheets and links to other
+' workbooks, in the colours from Settings. Nothing else about a cell changes.
+' Text and blank cells, pivot tables, and kinds whose colour is blank are left
+' alone. Same result codes and skipUndo meaning as Fmt_ApplyGroup.
+Public Function Fmt_ColourByContent(ByRef msg As String, Optional ByVal skipUndo As Boolean = False) As DigitResult
+    Dim sel As Object, ws As Worksheet, used As Range, consts As Range, forms As Range
+    Dim cfg As Scripting.Dictionary, colour(1 To DIGIT_CONTENT_KINDS) As Long, anyColour As Boolean
+    Dim names As Scripting.Dictionary, sheets As Scripting.Dictionary, cache As New Scripting.Dictionary
+    Dim area As Range, cell As Range, piece As Variant, spill As Range, counted As Range, allParts As New Collection
+    Dim entry As Scripting.Dictionary, prevScreen As Boolean, changed As Boolean, stage As String
+    Dim k As Long
+
+    msg = ""
+    prevScreen = Application.ScreenUpdating
+
+    If ActiveWorkbook Is Nothing Then
+        msg = "Digit: open a workbook first."
+        Fmt_ColourByContent = drNothingToDo
+        Exit Function
+    End If
+    Set sel = Selection
+    If sel Is Nothing Then
+        msg = "Digit: select some cells first."
+        Fmt_ColourByContent = drNothingToDo
+        Exit Function
+    End If
+    If TypeName(sel) <> "Range" Then
+        msg = "Digit: select cells to colour (charts and shapes are left alone)."
+        Fmt_ColourByContent = drNothingToDo
+        Exit Function
+    End If
+
+    Set cfg = Store_Config()
+    For k = ckInput To ckExternal
+        colour(k) = Core_HexToColor(Store_ContentColor(cfg, k))
+        If colour(k) >= 0 Then anyColour = True
+    Next k
+    If Not anyColour Then
+        msg = "Every Colour by content colour is blank, so there is nothing to apply." & vbCrLf & vbCrLf & _
+              "Choose the colours in Digit Settings, on the Colour by content tab."
+        Fmt_ColourByContent = drWarning
+        Exit Function
+    End If
+
+    On Error GoTo Fail
+    Set ws = sel.Worksheet
+    Cc_Reset
+
+    ' Only cells with content matter, so a whole column or sheet stays cheap.
+    stage = "finding the cells with content"
+    Set used = Application.Intersect(sel, ws.UsedRange)
+    If Not used Is Nothing Then
+        Set consts = OutsidePivots(ContentCells(used, False), ws)
+        Set forms = OutsidePivots(ContentCells(used, True), ws)
+    End If
+
+    stage = "reading the formulas"
+    If Not consts Is Nothing Then
+        If colour(ckInput) >= 0 Then Cc_Add ckInput, consts
+    End If
+    If Not forms Is Nothing Then
+        Cc_Lookups ws.Parent, names, sheets
+        For Each area In forms.Areas
+            Cc_AddFormulaArea area, ws.Name, names, sheets, cache, colour
+        Next area
+
+        ' A dynamic array formula colours the cells it spills into as well.
+        If forms.CountLarge <= MAX_SPILL_SCAN Then
+            For Each cell In forms.Cells
+                Set spill = SpillOf(cell, sel)
+                If Not spill Is Nothing Then
+                    k = Cc_Kind(CStr(cell.FormulaR1C1), ws.Name, names, sheets, cache)
+                    If colour(k) >= 0 Then
+                        Cc_Add k, spill
+                        ' Do not count twice the cells already listed as formulas.
+                        Set counted = Application.Intersect(spill, forms)
+                        If Not counted Is Nothing Then mCcCount(k) = mCcCount(k) - counted.CountLarge
+                    End If
+                End If
+            Next cell
+        End If
+    End If
+
+    For k = ckInput To ckExternal
+        Cc_Flush k
+        For Each piece In mCcParts(k)
+            allParts.Add piece
+        Next piece
+    Next k
+
+    If allParts.Count = 0 Then
+        Cc_Reset
+        If IsSheetProtected(ws) Then
+            ' Excel will not list the formula cells of a protected sheet.
+            msg = "The sheet """ & ws.Name & """ is protected, so Digit cannot colour its cells by content." & vbCrLf & vbCrLf & _
+                  "Unprotect it first (Review > Unprotect Sheet)."
+            Fmt_ColourByContent = drWarning
+        Else
+            msg = "Digit: nothing to colour in the selection (no numbers or formulas)."
+            Fmt_ColourByContent = drNothingToDo
+        End If
+        Exit Function
+    End If
+
+    If Not skipUndo Then
+        stage = "saving an undo copy"
+        Set entry = Undo_CaptureFont(allParts, "Colour by content")
+        If entry Is Nothing Then
+            Cc_Reset
+            msg = "The selection is too large or too varied for Digit to save an undo copy."
+            Fmt_ColourByContent = drUndoTooBig
+            Exit Function
+        End If
+    End If
+
+    stage = "setting the font colours"
+    Application.ScreenUpdating = False
+    changed = True
+    For k = ckInput To ckExternal
+        For Each piece In mCcParts(k)
+            piece.Font.Color = colour(k)
+        Next piece
+    Next k
+    Application.ScreenUpdating = prevScreen
+
+    If Not entry Is Nothing Then Undo_Push entry
+    msg = "Digit: Colour by content  " & Cc_Summary()
+    Cc_Reset
+    Fmt_ColourByContent = drOK
+    Exit Function
+
+Fail:
+    Dim errNum As Long, errDesc As String, dummy As String
+    errNum = Err.Number
+    errDesc = Err.Description
+    On Error GoTo -1
+    On Error Resume Next
+    If changed And Not entry Is Nothing Then Undo_Restore entry, dummy
+    Application.ScreenUpdating = prevScreen
+    Cc_Reset
+    On Error GoTo 0
+
+    If Not ws Is Nothing Then
+        If IsSheetProtected(ws) Then
+            msg = "The sheet """ & ws.Name & """ is protected, so Digit cannot change its formatting." & vbCrLf & vbCrLf & _
+                  "Unprotect it first (Review > Unprotect Sheet), or protect it with ""Format cells"" allowed."
+            Fmt_ColourByContent = drWarning
+            Exit Function
+        End If
+    End If
+    msg = "Digit could not colour the cells." & vbCrLf & vbCrLf & errDesc & " (error " & errNum & _
+          IIf(Len(stage) > 0, ", while " & stage, "") & ")"
+    Fmt_ColourByContent = drError
+End Function
+
+' The cells of r that hold a formula (formulas = True) or a typed number, date,
+' TRUE/FALSE or error value (formulas = False). Nothing when there are none.
+Private Function ContentCells(ByVal r As Range, ByVal formulas As Boolean) As Range
+    Dim found As Range, v As Variant
+    On Error Resume Next
+    If r.CountLarge = 1 Then
+        ' SpecialCells on a single cell searches the whole sheet instead.
+        If CBool(r.HasFormula) = formulas Then
+            If formulas Then
+                Set found = r
+            Else
+                v = r.Value
+                If Not IsEmpty(v) And VarType(v) <> vbString Then Set found = r
+            End If
+        End If
+    ElseIf formulas Then
+        Set found = r.SpecialCells(xlCellTypeFormulas)
+    Else
+        Set found = r.SpecialCells(xlCellTypeConstants, xlNumbers + xlLogical + xlErrors)
+    End If
+    ' Never beyond r, whatever SpecialCells searched (a lone merged cell counts
+    ' as one cell to it).
+    If Not found Is Nothing Then Set found = Application.Intersect(found, r)
+    Set ContentCells = found
+End Function
+
+' r without any cell that lies inside a pivot table.
+Private Function OutsidePivots(ByVal r As Range, ByVal ws As Worksheet) As Range
+    Dim pt As PivotTable, pivots As Range, area As Range, c As Range, keep As Range, n As Long
+
+    If r Is Nothing Then Exit Function
+    Set OutsidePivots = r
+    On Error Resume Next
+    n = ws.PivotTables.Count
+    If n = 0 Then Exit Function
+    For Each pt In ws.PivotTables
+        If pivots Is Nothing Then
+            Set pivots = pt.TableRange2
+        Else
+            Set pivots = Application.Union(pivots, pt.TableRange2)
+        End If
+    Next pt
+    If pivots Is Nothing Then Exit Function
+    If Application.Intersect(r, pivots) Is Nothing Then Exit Function
+
+    For Each area In r.Areas
+        If Application.Intersect(area, pivots) Is Nothing Then
+            Set keep = JoinRanges(keep, area)
+        Else
+            For Each c In area.Cells
+                If Application.Intersect(c, pivots) Is Nothing Then Set keep = JoinRanges(keep, c)
+            Next c
+        End If
+    Next area
+    Set OutsidePivots = keep
+End Function
+
+Private Function JoinRanges(ByVal a As Range, ByVal b As Range) As Range
+    If a Is Nothing Then
+        Set JoinRanges = b
+    Else
+        Set JoinRanges = Application.Union(a, b)
+    End If
+End Function
+
+' The part of a dynamic array formula's spill range inside sel, or Nothing
+' when cell does not spill (or this Excel has no dynamic arrays).
+Private Function SpillOf(ByVal cell As Object, ByVal sel As Range) As Range
+    Dim sp As Range
+    On Error Resume Next
+    Set sp = cell.SpillingToRange
+    If sp Is Nothing Then Exit Function
+    If sp.CountLarge < 2 Then Exit Function
+    Set SpillOf = Application.Intersect(sp, sel)
+End Function
+
+' What the classifier needs to know about the workbook: where each defined
+' name and table points, and the sheet names.
+Private Sub Cc_Lookups(ByVal wb As Workbook, ByRef names As Scripting.Dictionary, ByRef sheets As Scripting.Dictionary)
+    Dim sh As Object, nm As Object, lo As ListObject, key As String, target As String, p As Long, q As String
+
+    Set names = New Scripting.Dictionary
+    Set sheets = New Scripting.Dictionary
+    On Error Resume Next
+
+    For Each sh In wb.Sheets
+        sheets(LCase$(sh.Name)) = True
+    Next sh
+    ' The workbook's own name: Excel writes Book.xlsx!Name for a global name
+    ' that a sheet-level name hides. That is not a link to another file.
+    sheets(LCase$(wb.Name)) = "workbook"
+
+    For Each nm In wb.Names
+        key = ""
+        target = ""
+        key = nm.Name
+        target = nm.RefersTo
+        If Len(key) > 0 And Left$(target, 1) = "=" Then
+            p = InStrRev(key, "!")
+            If p > 0 Then
+                ' A sheet-scoped name reads Sheet1!Name or 'My Sheet'!Name.
+                q = Left$(key, p - 1)
+                If Left$(q, 1) = "'" And Right$(q, 1) = "'" And Len(q) >= 2 Then
+                    q = Replace(Mid$(q, 2, Len(q) - 2), "''", "'")
+                End If
+                key = LCase$(q) & "!" & LCase$(Mid$(key, p + 1))
+            Else
+                key = LCase$(key)
+            End If
+            names(key) = target
+        End If
+    Next nm
+
+    For Each sh In wb.Worksheets
+        For Each lo In sh.ListObjects
+            names(LCase$(lo.Name)) = "='" & Replace(sh.Name, "'", "''") & "'!A1"
+        Next lo
+    Next sh
+End Sub
+
+' Kind of one formula, remembered per distinct text. In R1C1 notation a
+' filled-down column is one text, so a large block costs one classification.
+Private Function Cc_Kind(ByVal formulaText As String, ByVal sheetName As String, ByVal names As Scripting.Dictionary, _
+                         ByVal sheets As Scripting.Dictionary, ByVal cache As Scripting.Dictionary) As Long
+    Dim kind As Long
+    If cache.Exists(formulaText) Then
+        Cc_Kind = cache(formulaText)
+        Exit Function
+    End If
+    kind = Core_ClassifyFormula(formulaText, sheetName, names, sheets)
+    If kind < ckInput Then kind = ckFormula
+    cache(formulaText) = kind
+    Cc_Kind = kind
+End Function
+
+' Sorts one rectangular block of formula cells into the kinds. Cells of the
+' same kind that sit next to each other are added as one piece.
+Private Sub Cc_AddFormulaArea(ByVal area As Range, ByVal sheetName As String, ByVal names As Scripting.Dictionary, _
+                              ByVal sheets As Scripting.Dictionary, ByVal cache As Scripting.Dictionary, _
+                              ByRef colour() As Long)
+    Dim v As Variant, rowsN As Long, colsN As Long, r As Long, c As Long
+    Dim kinds() As Byte, k As Long, first As Long, uniform As Boolean, startAt As Long
+
+    If area.CountLarge = 1 Then
+        k = Cc_Kind(CStr(area.FormulaR1C1), sheetName, names, sheets, cache)
+        If colour(k) >= 0 Then Cc_Add k, area
+        Exit Sub
+    End If
+
+    v = area.FormulaR1C1
+    rowsN = UBound(v, 1)
+    colsN = UBound(v, 2)
+    ReDim kinds(1 To rowsN, 1 To colsN)
+    uniform = True
+    For r = 1 To rowsN
+        For c = 1 To colsN
+            k = Cc_Kind(CStr(v(r, c)), sheetName, names, sheets, cache)
+            kinds(r, c) = k
+            If first = 0 Then first = k
+            If k <> first Then uniform = False
+        Next c
+    Next r
+
+    If uniform Then
+        If colour(first) >= 0 Then Cc_Add first, area
+        Exit Sub
+    End If
+
+    If rowsN >= colsN Then
+        ' Runs down each column.
+        For c = 1 To colsN
+            startAt = 1
+            For r = 2 To rowsN + 1
+                If r > rowsN Then
+                    k = 0
+                Else
+                    k = kinds(r, c)
+                End If
+                If k <> kinds(startAt, c) Then
+                    If colour(kinds(startAt, c)) >= 0 Then Cc_Add kinds(startAt, c), area.Cells(startAt, c).Resize(r - startAt, 1)
+                    startAt = r
+                End If
+            Next r
+        Next c
+    Else
+        ' Runs along each row.
+        For r = 1 To rowsN
+            startAt = 1
+            For c = 2 To colsN + 1
+                If c > colsN Then
+                    k = 0
+                Else
+                    k = kinds(r, c)
+                End If
+                If k <> kinds(r, startAt) Then
+                    If colour(kinds(r, startAt)) >= 0 Then Cc_Add kinds(r, startAt), area.Cells(r, startAt).Resize(1, c - startAt)
+                    startAt = c
+                End If
+            Next c
+        Next r
+    End If
+End Sub
+
+' Adds a piece to a kind. Pieces are joined into ranges of at most
+' CC_CHUNK_AREAS areas, because a union of very many areas gets slow.
+Private Sub Cc_Add(ByVal kind As Long, ByVal piece As Range)
+    mCcCount(kind) = mCcCount(kind) + piece.CountLarge
+    If mCcPending(kind) Is Nothing Then
+        Set mCcPending(kind) = piece
+    Else
+        Set mCcPending(kind) = Application.Union(mCcPending(kind), piece)
+    End If
+    If mCcPending(kind).Areas.Count >= CC_CHUNK_AREAS Then Cc_Flush kind
+End Sub
+
+Private Sub Cc_Flush(ByVal kind As Long)
+    If mCcPending(kind) Is Nothing Then Exit Sub
+    mCcParts(kind).Add mCcPending(kind)
+    Set mCcPending(kind) = Nothing
+End Sub
+
+Private Sub Cc_Reset()
+    Dim k As Long
+    For k = 1 To DIGIT_CONTENT_KINDS
+        Set mCcParts(k) = New Collection
+        Set mCcPending(k) = Nothing
+        mCcCount(k) = 0
+    Next k
+End Sub
+
+' "12 input, 30 formula, 4 sheet link, 1 external" (kinds with no cells left out).
+Private Function Cc_Summary() As String
+    Dim k As Long, s As String, label As Variant
+    label = Array("", "input", "formula", "sheet link", "external")
+    For k = ckInput To ckExternal
+        If mCcCount(k) > 0 Then
+            If Len(s) > 0 Then s = s & ", "
+            s = s & Format$(mCcCount(k), "#,##0") & " " & label(k)
+        End If
+    Next k
+    Cc_Summary = s
 End Function
 
 '------------------------------------------------------------------------------

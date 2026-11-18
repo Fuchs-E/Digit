@@ -1,4 +1,4 @@
 {
-  "version": "1.4.0",
-  "notes": "Presets can now set bold, italic and underline. Settings is reorganised into two tabs: Presets (groups in ribbon order, pictures, the preset editor) and Ribbon & shortcuts."
+  "version": "1.5.0",
+  "notes": "New Colour by content button: one click colours each selected cell's font by what it holds (blue inputs, black formulas, green links to other sheets, dark red links to other files) and changes nothing else. Set the colours and shortcut on the new Colour by content tab in Settings."
 }

@@ -34,7 +34,8 @@ Public Sub BuildSettingsForm(ByVal codeFile As String)
     comp.Properties("Height").Value = 508
     Set d = comp.Designer
 
-    ' Two tabs: Presets (groups, pictures, formats) and Ribbon & shortcuts.
+    ' Three tabs: Presets (groups, pictures, formats), Ribbon & shortcuts, and
+    ' Colour by content.
     Dim mp As Object, pg1 As Object, pg2 As Object, fr As Object, fra As Object, k As Long, y As Single
     Set mp = AddCtl(d, "Forms.MultiPage.1", "mpTabs", 4, 4, 628, 440)
     Set pg1 = mp.Pages(0): pg1.Caption = "Presets"
@@ -148,7 +149,34 @@ Public Sub BuildSettingsForm(ByVal codeFile As String)
     AddButton fr, "btnExport", 92, 32, 80, 24, "Export..."
     AddButton fr, "btnOpenFolder", 176, 32, 90, 24, "Open folder"
 
-    '=== Footer (both tabs) ===================================================
+    '=== Tab 3: Colour by content ============================================
+    Dim pg3 As Object, capt As Variant
+    Set pg3 = mp.Pages.Add("pgColour", "Colour by content")
+    Set fr = AddFrame(pg3, "fraContent", 4, 4, 616, 172, "Font colour for each kind of cell")
+    Hint fr, "lblCcHint", 8, 12, 600, 12, "The Colour by content button colours each selected cell's font by what it holds. Nothing else about the cell changes."
+    capt = Array("", "Inputs: typed numbers, dates, TRUE / FALSE", "Formulas on the same sheet", _
+                 "Links to other sheets in the workbook", "Links to other files")
+    For i = 1 To 4
+        y = 34 + (i - 1) * 26
+        AddLabel fr, "lblCcName" & i, 8, y + 3, 250, 12, CStr(capt(i))
+        Set c = AddLabel(fr, "lblCcSwatch" & i, 264, y, 60, 18, "none")
+        Swatch c
+        AddButton fr, "btnCcPick" & i, 330, y - 1, 96, 21, "Choose colour..."
+        Set c = AddButton(fr, "btnCcNone" & i, 430, y - 1, 56, 21, "Clear")
+        c.ControlTipText = "Leave cells of this kind alone."
+    Next i
+    AddButton fr, "btnCcReset", 8, 142, 150, 22, "Reset to standard colours"
+    Hint fr, "lblCcStd", 166, 147, 440, 12, "Blue inputs, black formulas, green sheet links, dark red file links."
+
+    Set fr = AddFrame(pg3, "fraContentKey", 4, 182, 616, 62, "Keyboard shortcut")
+    AddLabel fr, "lblKeyColour", 8, 15, 236, 12, "Colour by content"
+    Set c = AddCtl(fr, "Forms.TextBox.1", "txtKeyColour", 250, 12, 140, 18)
+    c.ControlTipText = "For example Ctrl+Alt+6. Leave blank for no shortcut."
+    Hint fr, "lblKeyColourHint", 8, 38, 600, 12, "Works when ""Enable keyboard shortcuts"" is ticked on the previous tab."
+
+    Hint pg3, "lblCcNote", 8, 252, 608, 24, "Text, blank cells and pivot tables are always left alone. Undo Format puts the previous colours back."
+
+    '=== Footer (every tab) ===================================================
     Set c = Hint(d, "lblStatus", 8, 456, 460, 12, "")
     Set c = AddButton(d, "btnSave", 478, 450, 72, 24, "Save")
     c.Default = True

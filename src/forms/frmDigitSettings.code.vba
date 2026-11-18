@@ -1,6 +1,7 @@
 '==============================================================================
-' frmDigitSettings - Digit settings: two tabs, Presets (groups, pictures,
-' formats, colours, bold / italic / underline) and Ribbon & shortcuts.
+' frmDigitSettings - Digit settings: three tabs, Presets (groups, pictures,
+' formats, colours, bold / italic / underline), Ribbon & shortcuts, and
+' Colour by content (its four colours and shortcut).
 '
 ' This is the form's code module. The form's controls are created by
 ' build/DigitFormBuilder.bas (control names below must match it), and build.ps1
@@ -54,6 +55,7 @@ Private Sub btnSave_Click()
     For i = 1 To DIGIT_SLOT_COUNT
         Store_SetShortcut mCfg, i, Core_NormalizeShortcut(KeyBox(i).Text)
     Next i
+    Store_SetContentShortcut mCfg, Core_NormalizeShortcut(txtKeyColour.Text)
     If Not Store_Save(mCfg, msg) Then
         MsgBox "Digit could not save the presets file:" & vbCrLf & Store_FilePath() & vbCrLf & vbCrLf & msg, _
                vbCritical, DIGIT_TITLE
@@ -85,9 +87,12 @@ Private Sub LoadAll(ByVal cfg As Scripting.Dictionary)
         KeyBox(i).Text = Store_Shortcut(mCfg, i)
         KeyBox(i).ForeColor = vbWindowText
     Next i
+    txtKeyColour.Text = Store_ContentShortcut(mCfg)
+    txtKeyColour.ForeColor = vbWindowText
     mLoading = False
     RefreshGroups 1
     RefreshSlots
+    RefreshContentColours
     lblStatus.Caption = "File: " & Store_FilePath()
     lblStatus.ControlTipText = Store_FilePath()
 End Sub
@@ -940,10 +945,72 @@ Private Sub chkShortcuts_Click()
 End Sub
 
 '------------------------------------------------------------------------------
+' Colour by content tab (k = DigitContentKind, 1 to 4)
+'------------------------------------------------------------------------------
+
+Private Sub RefreshContentColours()
+    Dim k As Long
+    For k = ckInput To ckExternal
+        ShowSwatch Me.Controls("lblCcSwatch" & k), Store_ContentColor(mCfg, k)
+    Next k
+End Sub
+
+Private Sub PickContentColour(ByVal k As Long)
+    Dim c As Long
+    c = UI_PickColor(Core_HexToColor(Store_ContentColor(mCfg, k)), Me.Caption)
+    If c < 0 Then Exit Sub
+    Store_SetContentColor mCfg, k, Core_ColorToHex(c)
+    mDirty = True
+    RefreshContentColours
+End Sub
+
+Private Sub ClearContentColour(ByVal k As Long)
+    Store_SetContentColor mCfg, k, ""
+    mDirty = True
+    RefreshContentColours
+End Sub
+
+Private Sub btnCcPick1_Click(): PickContentColour 1: End Sub
+Private Sub btnCcPick2_Click(): PickContentColour 2: End Sub
+Private Sub btnCcPick3_Click(): PickContentColour 3: End Sub
+Private Sub btnCcPick4_Click(): PickContentColour 4: End Sub
+Private Sub lblCcSwatch1_Click(): PickContentColour 1: End Sub
+Private Sub lblCcSwatch2_Click(): PickContentColour 2: End Sub
+Private Sub lblCcSwatch3_Click(): PickContentColour 3: End Sub
+Private Sub lblCcSwatch4_Click(): PickContentColour 4: End Sub
+Private Sub btnCcNone1_Click(): ClearContentColour 1: End Sub
+Private Sub btnCcNone2_Click(): ClearContentColour 2: End Sub
+Private Sub btnCcNone3_Click(): ClearContentColour 3: End Sub
+Private Sub btnCcNone4_Click(): ClearContentColour 4: End Sub
+
+' The four colours only; the shortcut stays as it is.
+Private Sub btnCcReset_Click()
+    Dim k As Long
+    For k = ckInput To ckExternal
+        Store_SetContentColor mCfg, k, Store_ContentDefault(k)
+    Next k
+    mDirty = True
+    RefreshContentColours
+End Sub
+
+Private Sub txtKeyColour_Change()
+    Dim t As String
+    If mLoading Then Exit Sub
+    t = Trim$(txtKeyColour.Text)
+    Store_SetContentShortcut mCfg, t
+    If Len(t) > 0 And Len(Core_ShortcutToOnKey(t)) = 0 Then
+        txtKeyColour.ForeColor = RGB(192, 0, 0)
+    Else
+        txtKeyColour.ForeColor = vbWindowText
+    End If
+    mDirty = True
+End Sub
+
+'------------------------------------------------------------------------------
 ' Validation
 '------------------------------------------------------------------------------
 
-' Checks every number format and shortcut. On failure selects the culprit and
+' Checks every number format and shortcut (Colour by content's too). On failure selects the culprit and
 ' returns a message.
 Private Function ValidateAll(ByRef msg As String) As Boolean
     Dim gi As Long, pi As Long, g As Scripting.Dictionary, fmt As String
@@ -996,6 +1063,20 @@ Private Function ValidateAll(ByRef msg As String) As Boolean
                 Exit Function
             End If
         Next j
+    Next i
+
+    ki = Trim$(txtKeyColour.Text)
+    If Len(ki) > 0 And Len(Core_ShortcutToOnKey(ki)) = 0 Then
+        msg = "The shortcut for Colour by content (""" & ki & """) is not valid." & vbCrLf & vbCrLf & _
+              "Use Ctrl and/or Alt (optionally Shift) plus a key, for example Ctrl+Alt+6 or Ctrl+Shift+F6."
+        Exit Function
+    End If
+    ki = Core_ShortcutToOnKey(ki)
+    For i = 1 To DIGIT_SLOT_COUNT
+        If Len(ki) > 0 And ki = Core_ShortcutToOnKey(KeyBox(i).Text) Then
+            msg = "Colour by content and button " & i & " use the same shortcut."
+            Exit Function
+        End If
     Next i
 
     ValidateAll = True

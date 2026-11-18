@@ -38,12 +38,15 @@ Public Function RunAllTests(Optional ByVal tempFolder As String = "") As String
     Test_XmlEscape
     Test_Versions
     Test_Collections
+    Test_Classify
     Test_Normalize
+    Test_ContentSettings
     Test_StoreRoundTrip
     Test_FormatUtilities
     Test_RangeCycleAndUndo
     Test_MultiAreaAndColours
     Test_Styles
+    Test_ColourByContent
     Test_TableColumn
     Test_ProtectedSheet
     Test_PivotDataField
@@ -197,7 +200,9 @@ Private Sub Test_SettingsForm()
     Set f = New frmDigitSettings
     Check f.Controls("lstGroups").ListCount > 0, "settings lists the preset groups"
     Check Not f.Controls("fraIcons").Visible, "icon picker starts closed"
-    CheckEq f.Controls("mpTabs").Pages.Count, 2, "settings has two tabs"
+    CheckEq f.Controls("mpTabs").Pages.Count, 3, "settings has three tabs"
+    CheckEq f.Controls("txtKeyColour").Text, Store_ContentShortcut(Store_Config()), "colour by content shortcut shown"
+    Check Len(f.Controls("lblCcSwatch4").ControlTipText) > 0, "colour by content swatches filled"
     Check f.Controls("chkBold").TripleState, "bold box has a leave-as-is state"
     CheckEq Left$(f.Controls("lblSlot1").Caption, 1), "1", "shortcut rows are numbered"
     Unload f
@@ -211,6 +216,62 @@ Private Sub Test_Collections()
     Coll_ReplaceAt c, 2, "x"
     CheckEq c(1) & c(2) & c(3), "cxa", "replace"
     CheckEq c.Count, 3, "count kept"
+End Sub
+
+' Colour by content: the formula classifier. The cell is on sheet "Model".
+Private Sub Test_Classify()
+    Dim names As New Scripting.Dictionary, sheets As New Scripting.Dictionary, v As Variant
+
+    For Each v In Array("model", "inputs", "my sheet", "jan", "dec")
+        sheets(CStr(v)) = True
+    Next v
+    names("taxrate") = "=0.05"
+    names("revenue") = "=Inputs!$C$7"
+    names("local") = "=Model!$A$1"
+    names("ext") = "='[Budget.xlsx]Sheet1'!$A$1"
+    names("chain") = "=Revenue*2"
+    names("model!scoped") = "=Inputs!$A$1"
+    names("scoped") = "=Model!$A$1"
+    names("table1") = "='Inputs'!A1"
+    names("table2") = "='Model'!A1"
+    names("loop") = "=Loop+1"
+
+    CheckEq Core_ClassifyFormula("1250", "Model", names, sheets), ckNone, "classify: not a formula"
+
+    For Each v In Array("=1000*12", "=-(5+3)/2", "=1E+3*2", "=TRUE", "=.5*2", "={1,2;3,4}")
+        CheckEq Core_ClassifyFormula(CStr(v), "Model", names, sheets), ckInput, "classify input: " & v
+    Next v
+
+    For Each v In Array("=B5*C5", "=SUM(D2:D10)", "=TODAY()", "=B5*1.05", "=$A$1", "=SUM(A:A)", "=SUM(1:1)", _
+                        "=LOG10(100)", "=Model!A1", "=""See Inputs!A1""", "=""a""&""b""", "=A1&"" units""", _
+                        "=#REF!+1", "=#N/A", "=#DIV/0!", "=TaxRate*B5", "=Local", "=Table2[Amount]", _
+                        "=[@Amount]*2", "=Table2[[#This Row],[Amount]]", "=Table2[[#This Row],[It's '[x']]]]", _
+                        "=LET(x,1,x*2)", "=Undefined+1", "=RC[-1]*R[-1]C", "=A1#", "=Loop", "=Model!1:1+TaxRate")
+        CheckEq Core_ClassifyFormula(CStr(v), "Model", names, sheets), ckFormula, "classify formula: " & v
+    Next v
+
+    For Each v In Array("=Inputs!C7", "='My Sheet'!A1", "=B5*Inputs!C2", "=SUM(Jan:Dec!B5)", "=SUM('Jan:Dec'!B5)", _
+                        "=Revenue", "=Chain", "=Scoped", "=Table1[Amount]", "=SUM(Table1[[#Totals],[Amount]])", _
+                        "=Inputs!RC[-1]", "=Model!1:1+Revenue", "=#REF!A1+Inputs!A1")
+        CheckEq Core_ClassifyFormula(CStr(v), "Model", names, sheets), ckSheetLink, "classify sheet link: " & v
+    Next v
+
+    For Each v In Array("=[Budget.xlsx]Sheet1!A1", "=[1]Sheet1!A1", "='C:\path\[Budget.xlsx]Sheet1'!A1", _
+                        "=Budget.xlsx!Name", "='C:\x\Budget.xlsx'!Name", "=PERSONAL.XLSB!MyFn(A1)", _
+                        "=Inputs!A1+[Budget.xlsx]Sheet1!A1", "=Ext", "=[Budget.xlsx]Jan:Dec!A1", _
+                        "='\\srv\share\Budget.xlsx'!Name")
+        CheckEq Core_ClassifyFormula(CStr(v), "Model", names, sheets), ckExternal, "classify external: " & v
+    Next v
+
+    ' Without the sheet list or names, any unbracketed qualifier is a sheet.
+    CheckEq Core_ClassifyFormula("=Assumptions!C7", "Model", Nothing, Nothing), ckSheetLink, "classify: no sheet list"
+    CheckEq Core_ClassifyFormula("=Model!C7", "model", Nothing, Nothing), ckFormula, "classify: own sheet, any case"
+    CheckEq Core_ClassifyFormula("=Scoped", "Inputs", names, sheets), ckSheetLink, "classify: global name from another sheet"
+    sheets("bob's p&l") = True
+    CheckEq Core_ClassifyFormula("='Bob''s P&L'!A1", "Model", names, sheets), ckSheetLink, "classify: apostrophe in a sheet name"
+    sheets("model.xlsx") = "workbook"
+    CheckEq Core_ClassifyFormula("=Model.xlsx!TaxRate", "Model", names, sheets), ckFormula, "classify: this workbook's own name"
+    CheckEq Core_ClassifyFormula("=Other.xlsx!TaxRate", "Model", names, sheets), ckExternal, "classify: another workbook's name"
 End Sub
 
 Private Sub Test_Normalize()
@@ -251,6 +312,45 @@ Private Sub Test_Normalize()
 
     Check Store_ParseConfig("not json", errMsg) Is Nothing, "invalid json rejected"
     Check Store_ParseConfig("{""groups"":[]}", errMsg) Is Nothing, "no groups rejected"
+End Sub
+
+' Colour by content settings: defaults, repair, and the shortcut giving way.
+Private Sub Test_ContentSettings()
+    Dim cfg As Scripting.Dictionary, errMsg As String, grp As String
+    grp = """groups"":[{""name"":""X"",""presets"":[{""numberFormat"":""0""}]}]"
+
+    Set cfg = Store_ParseConfig("{" & grp & "}", errMsg)
+    Check Not cfg Is Nothing, "content settings: parse ok"
+    If cfg Is Nothing Then Exit Sub
+    CheckEq Store_ContentColor(cfg, ckInput), "#0000FF", "default input colour"
+    CheckEq Store_ContentColor(cfg, ckFormula), "#000000", "default formula colour"
+    CheckEq Store_ContentColor(cfg, ckSheetLink), "#008000", "default sheet link colour"
+    CheckEq Store_ContentColor(cfg, ckExternal), "#C00000", "default external colour"
+    CheckEq Store_ContentShortcut(cfg), "Ctrl+Alt+6", "default content shortcut"
+
+    Set cfg = Store_ParseConfig("{" & grp & ",""settings"":{""contentColors"":" & _
+                                "{""input"":"""",""formula"":""zzz"",""sheetLink"":""#00ff00""}," & _
+                                """contentColorShortcut"":""ctrl+shift+k""}}", errMsg)
+    CheckEq Store_ContentColor(cfg, ckInput), "", "blank colour kept (skip this kind)"
+    CheckEq Store_ContentColor(cfg, ckFormula), "#000000", "invalid colour repaired to the default"
+    CheckEq Store_ContentColor(cfg, ckSheetLink), "#00FF00", "colour upper-cased"
+    CheckEq Store_ContentColor(cfg, ckExternal), "#C00000", "missing colour gets the default"
+    CheckEq Store_ContentShortcut(cfg), "Ctrl+Shift+K", "content shortcut normalised"
+
+    Set cfg = Store_Clone(cfg)
+    CheckEq Store_ContentColor(cfg, ckInput), "", "blank colour survives a save"
+    CheckEq Store_ContentColor(cfg, ckSheetLink), "#00FF00", "colour survives a save"
+    CheckEq Store_ContentShortcut(cfg), "Ctrl+Shift+K", "content shortcut survives a save"
+
+    Store_SetContentColor cfg, ckExternal, "#ff0000"
+    CheckEq Store_ContentColor(cfg, ckExternal), "#FF0000", "set colour"
+    Store_SetContentColor cfg, ckExternal, ""
+    CheckEq Store_ContentColor(cfg, ckExternal), "", "clear colour"
+
+    ' A quick button that already uses Ctrl+Alt+6 keeps it.
+    Set cfg = Store_ParseConfig("{" & grp & ",""settings"":{""shortcuts"":[""Ctrl+Alt+6"","""","""","""",""""]}}", errMsg)
+    CheckEq Store_ContentShortcut(cfg), "", "content shortcut gives way to a quick button"
+    CheckEq cfg("settings")("shortcuts")(1), "Ctrl+Alt+6", "quick button keeps its shortcut"
 End Sub
 
 Private Sub Test_StoreRoundTrip()
@@ -472,6 +572,156 @@ Private Sub Test_Styles()
     Undo_Last msg
     CheckEq ws.Range("B2").Font.Bold, False, "undo removes bold"
     wb.Close SaveChanges:=False
+End Sub
+
+' Colour by content on a small model: every kind, nothing but the font colour
+' changes, undo, and the selections that need care.
+Private Sub Test_ColourByContent()
+    Dim wb As Workbook, wb2 As Workbook, ws As Worksheet, wsIn As Worksheet
+    Dim msg As String, res As DigitResult, themeBefore As Variant
+    Dim blue As Long, black As Long, green As Long, red As Long, pink As Long, yellow As Long
+
+    blue = RGB(0, 0, 255): black = RGB(0, 0, 0): green = RGB(0, 128, 0): red = RGB(192, 0, 0)
+    pink = RGB(255, 0, 255): yellow = RGB(255, 242, 204)
+
+    Set wb2 = NewScratchBook()
+    wb2.Worksheets(1).Range("A1").Value = 7
+    Set wb = NewScratchBook()
+    Set ws = wb.Worksheets(1)
+    ws.Name = "Model"
+    Set wsIn = wb.Worksheets.Add(After:=ws)
+    wsIn.Name = "Inputs"
+    wsIn.Range("C7").Value = 100
+    wb.Names.Add Name:="Revenue", RefersTo:="=Inputs!$C$7"
+    ws.Activate
+    Undo_Clear
+    Undo_SetDepth 10
+
+    With ws
+        .Range("A1").Value = 0.05
+        .Range("A1").NumberFormat = "0.0%"
+        .Range("A1").Font.Bold = True
+        .Range("A1").Interior.Color = yellow
+        .Range("A2").Formula = "=A1*2"
+        .Range("A3").Formula = "=Inputs!C7*A1"
+        .Range("A4").Formula = "=Revenue"
+        .Range("A5").Formula = "=1000*12"
+        .Range("A6").Value = True
+        .Range("A7").Value = "Label"
+        .Range("A7").Font.Color = pink
+        .Range("A9").Formula = "=""See Inputs!C7"""
+        .Range("B1").Value = DateSerial(2026, 1, 31)
+        .Range("B2").Formula = "=SUM(A1:A2)"
+        .Range("B3").Formula = "=[" & wb2.Name & "]" & wb2.Worksheets(1).Name & "!$A$1"
+        .Range("B8").Font.Color = pink              ' blank cell
+    End With
+    themeBefore = FontTheme(ws.Range("A2"))
+
+    ws.Range("A1:B10").Select
+    res = Fmt_ColourByContent(msg)
+    CheckEq res, drOK, "colour by content: " & msg
+    CheckEq msg, "Digit: Colour by content  4 input, 3 formula, 2 sheet link, 1 external", "colour summary"
+    CheckEq ws.Range("A1").Font.Color, blue, "typed number is an input"
+    CheckEq ws.Range("B1").Font.Color, blue, "typed date is an input"
+    CheckEq ws.Range("A6").Font.Color, blue, "typed TRUE is an input"
+    CheckEq ws.Range("A5").Font.Color, blue, "formula of numbers only is an input"
+    CheckEq ws.Range("A2").Font.Color, black, "same-sheet formula"
+    CheckEq ws.Range("B2").Font.Color, black, "same-sheet function"
+    CheckEq ws.Range("A9").Font.Color, black, "sheet name inside text is not a link"
+    CheckEq ws.Range("A3").Font.Color, green, "link to another sheet"
+    CheckEq ws.Range("A4").Font.Color, green, "name that points at another sheet"
+    CheckEq ws.Range("B3").Font.Color, red, "link to another workbook"
+    CheckEq ws.Range("A7").Font.Color, pink, "typed text is left alone"
+    CheckEq ws.Range("B8").Font.Color, pink, "blank cell is left alone"
+    Check SameFormat(ws.Range("A1").NumberFormat, "0.0%"), "number format untouched"
+    CheckEq ws.Range("A1").Font.Bold, True, "bold untouched"
+    CheckEq ws.Range("A1").Interior.Color, yellow, "fill untouched"
+    CheckEq Undo_Count(), 1, "one undo entry"
+    CheckEq Undo_PeekLabel(), "Colour by content", "undo label"
+
+    ' Undo puts the font colours back and nothing else.
+    ws.Range("A1").NumberFormat = "0.00"
+    CheckEq Undo_Last(msg), drOK, "undo colour by content: " & msg
+    Check ws.Range("A3").Font.Color <> green, "undo restores the font colour"
+    CheckEq FontTheme(ws.Range("A2")), themeBefore, "undo restores a theme colour as a theme colour"
+    Check SameFormat(ws.Range("A1").NumberFormat, "0.00"), "undo leaves a later number format alone"
+    CheckEq ws.Range("A7").Font.Color, pink, "undo leaves text alone"
+
+    ' One cell selected: only that cell.
+    ws.Range("A1").Select
+    CheckEq Fmt_ColourByContent(msg), drOK, "single cell: " & msg
+    CheckEq ws.Range("A1").Font.Color, blue, "single cell coloured"
+    Check ws.Range("A3").Font.Color <> green, "single cell: other cells untouched"
+    ws.Range("A3").Select
+    Fmt_ColourByContent msg
+    CheckEq ws.Range("A3").Font.Color, green, "single formula cell coloured"
+    Check ws.Range("B3").Font.Color <> red, "single formula cell: other cells untouched"
+
+    ' Nothing but text and blanks: nothing happens.
+    Undo_Clear
+    ws.Range("A7:A8").Select
+    CheckEq Fmt_ColourByContent(msg), drNothingToDo, "text only is skipped"
+    CheckEq Undo_Count(), 0, "text only: no undo entry"
+    ws.Range("A7").Select
+    CheckEq Fmt_ColourByContent(msg), drNothingToDo, "single text cell is skipped"
+    ws.Range("D20").Select
+    CheckEq Fmt_ColourByContent(msg), drNothingToDo, "cell outside the used range is skipped"
+
+    ' A blank colour in Settings leaves that kind alone.
+    Store_SetContentColor Store_Config(), ckInput, ""
+    ws.Range("A1").Font.Color = pink
+    ws.Range("A2").Font.Color = pink
+    ws.Range("A1:A2").Select
+    CheckEq Fmt_ColourByContent(msg), drOK, "blank input colour: " & msg
+    CheckEq ws.Range("A1").Font.Color, pink, "blank colour: inputs left alone"
+    CheckEq ws.Range("A2").Font.Color, black, "blank colour: other kinds still coloured"
+    Store_SetContentColor Store_Config(), ckInput, Store_ContentDefault(ckInput)
+
+    ' A filled-down block with a different formula in the middle.
+    ws.Range("D1:D50").Formula = "=A1+1"
+    ws.Range("D25").Formula = "=Inputs!C7"
+    ws.Range("E1:E50").Value = 3
+    ws.Range("D1:E50").Select
+    CheckEq Fmt_ColourByContent(msg), drOK, "block: " & msg
+    CheckEq ws.Range("D24").Font.Color, black, "block: above the odd cell"
+    CheckEq ws.Range("D25").Font.Color, green, "block: the odd cell"
+    CheckEq ws.Range("D50").Font.Color, black, "block: below the odd cell"
+    CheckEq ws.Range("E50").Font.Color, blue, "block: constants"
+
+    ' Whole column and whole sheet stay within the used range.
+    ws.Columns(1).Select
+    CheckEq Fmt_ColourByContent(msg), drOK, "entire column: " & msg
+    CheckEq ws.Range("A4").Font.Color, green, "entire column coloured"
+    ws.Cells.Select
+    CheckEq Fmt_ColourByContent(msg), drOK, "entire sheet: " & msg
+
+    ' Several areas.
+    ws.Range("A1:B3").Font.Color = pink
+    ws.Range("A1,B3").Select
+    Fmt_ColourByContent msg
+    CheckEq ws.Range("A1").Font.Color, blue, "multi-area: first area"
+    CheckEq ws.Range("B3").Font.Color, red, "multi-area: second area"
+    CheckEq ws.Range("A2").Font.Color, pink, "multi-area: cells between are untouched"
+
+    ' One merged cell selected: only that cell.
+    ws.Range("G1").Value = 5
+    ws.Range("G1:H1").Merge
+    ws.Range("A1").Font.Color = pink
+    ws.Range("G1:H1").Select
+    CheckEq Fmt_ColourByContent(msg), drOK, "merged cell: " & msg
+    CheckEq ws.Range("G1").Font.Color, blue, "merged cell coloured"
+    CheckEq ws.Range("A1").Font.Color, pink, "merged cell: other cells untouched"
+
+    ' Shape selected, then a protected sheet.
+    ws.Shapes.AddShape(1, 10, 10, 20, 20).Select
+    CheckEq Fmt_ColourByContent(msg), drNothingToDo, "shape selected is skipped"
+    ws.Range("A1:B10").Select
+    ws.Protect
+    CheckEq Fmt_ColourByContent(msg), drWarning, "protected sheet gives a warning"
+    ws.Unprotect
+
+    wb.Close SaveChanges:=False
+    wb2.Close SaveChanges:=False
 End Sub
 
 Private Sub Test_TableColumn()

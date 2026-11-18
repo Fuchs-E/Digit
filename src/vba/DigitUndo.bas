@@ -14,6 +14,7 @@ Attribute VB_Name = "DigitUndo"
 '
 '   block = Array(address, numberFormat, fontMode, fontColor, fillMode, fillColor, themeColor, tint,
 '                 bold, italic, underline)        ' the last three are Empty when not saved
+'     numberFormat is Empty in a font-only snapshot (Undo_CaptureFont) and is then not restored
 '     fontMode: 0 not saved, 1 automatic, 2 colour, 3 theme colour (themeColor + tint)
 '     fillMode: 0 not saved, 1 no fill,   2 colour
 '
@@ -30,6 +31,7 @@ Private Const MAX_BLOCKS As Long = 50000      ' beyond this, ask before applying
 Private mHistory As Collection                ' of Scripting.Dictionary, newest last
 Private mDepth As Long
 Private mIncStyle As Boolean                  ' current capture also saves bold / italic / underline
+Private mNoFormat As Boolean                  ' current capture leaves the number format out (font colour only)
 
 '------------------------------------------------------------------------------
 ' History
@@ -99,6 +101,7 @@ Public Function Undo_CaptureRange(ByVal tgt As Range, ByVal includeFont As Boole
     Dim entry As New Scripting.Dictionary, blocks As New Collection, area As Range
 
     mIncStyle = includeStyle
+    mNoFormat = False
     For Each area In tgt.Areas
         If Not SnapRange(area, includeFont, includeFill, blocks) Then Exit Function
     Next area
@@ -110,6 +113,41 @@ Public Function Undo_CaptureRange(ByVal tgt As Range, ByVal includeFont As Boole
     entry("bookName") = tgt.Worksheet.Parent.Name
     Set entry("blocks") = blocks
     Set Undo_CaptureRange = entry
+End Function
+
+' Snapshot of the font colour only, for a change that touches nothing else
+' (Colour by content). parts is a Collection of Range, all on one sheet. The
+' number format is neither saved nor restored, so undoing this later leaves
+' alone a format the user changed in between. Returns Nothing when parts is
+' empty or it would need more than MAX_BLOCKS blocks.
+Public Function Undo_CaptureFont(ByVal parts As Collection, ByVal label As String) As Scripting.Dictionary
+    Dim entry As New Scripting.Dictionary, blocks As New Collection
+    Dim part As Range, area As Range, ws As Worksheet
+
+    If parts Is Nothing Then Exit Function
+    If parts.Count = 0 Then Exit Function
+
+    mIncStyle = False
+    mNoFormat = True
+    For Each part In parts
+        For Each area In part.Areas
+            If Not SnapRange(area, True, False, blocks) Then
+                mNoFormat = False
+                Exit Function
+            End If
+        Next area
+    Next part
+    mNoFormat = False
+
+    Set part = parts(1)
+    Set ws = part.Worksheet
+    entry("kind") = "range"
+    entry("label") = label
+    Set entry("sheet") = ws
+    entry("sheetName") = ws.Name
+    entry("bookName") = ws.Parent.Name
+    Set entry("blocks") = blocks
+    Set Undo_CaptureFont = entry
 End Function
 
 ' Snapshot of pivot data field number formats before a change.
@@ -133,7 +171,7 @@ End Function
 ' Adds blocks for r. Returns False when the block limit is reached.
 Private Function SnapRange(ByVal r As Range, ByVal incFont As Boolean, ByVal incFill As Boolean, _
                            ByVal blocks As Collection) As Boolean
-    Dim st As Variant, rowsN As Long, colsN As Long, half As Long
+    Dim st As Variant, rowsN As Long, colsN As Long, half As Long, nf1 As Variant
 
     If blocks.Count >= MAX_BLOCKS Then Exit Function
 
@@ -149,7 +187,8 @@ Private Function SnapRange(ByVal r As Range, ByVal incFont As Boolean, ByVal inc
     If rowsN = 1 And colsN = 1 Then
         ' A single cell can still read as mixed (rich text with several font
         ' colours); keep its number format and leave the font alone.
-        blocks.Add Array(r.Address(False, False), r.NumberFormat, 0, 0, FillMode(r, incFill), FillColor(r, incFill), 0, 0#, _
+        If mNoFormat Then nf1 = Empty Else nf1 = r.NumberFormat
+        blocks.Add Array(r.Address(False, False), nf1, 0, 0, FillMode(r, incFill), FillColor(r, incFill), 0, 0#, _
                          Empty, Empty, Empty)
         SnapRange = True
         Exit Function
@@ -173,8 +212,13 @@ Private Function ReadUniform(ByVal r As Range, ByVal incFont As Boolean, ByVal i
     Dim nf As Variant, fMode As Long, fColor As Variant, iMode As Long, iColor As Variant, v As Variant
     Dim theme As Variant, tint As Variant, b As Variant, it As Variant, u As Variant
 
-    nf = r.NumberFormat
-    If IsNull(nf) Then Exit Function
+    If mNoFormat Then
+        nf = Empty
+    Else
+        nf = r.NumberFormat
+        If IsNull(nf) Then Exit Function
+        nf = CStr(nf)
+    End If
 
     If incFont Then
         v = r.Font.ColorIndex
@@ -222,7 +266,7 @@ Private Function ReadUniform(ByVal r As Range, ByVal incFont As Boolean, ByVal i
         If IsNull(b) Or IsNull(it) Or IsNull(u) Then Exit Function
     End If
 
-    st = Array(r.Address(False, False), CStr(nf), fMode, CLng(fColor), iMode, CLng(iColor), CLng(theme), CDbl(tint), b, it, u)
+    st = Array(r.Address(False, False), nf, fMode, CLng(fColor), iMode, CLng(iColor), CLng(theme), CDbl(tint), b, it, u)
     ReadUniform = True
 End Function
 
@@ -271,7 +315,7 @@ Public Function Undo_Restore(ByVal entry As Scripting.Dictionary, ByRef msg As S
         For Each b In entry("blocks")
             Err.Clear
             Set r = ws.Range(b(0))
-            r.NumberFormat = b(1)
+            If Not IsEmpty(b(1)) Then r.NumberFormat = b(1)
             Select Case b(2)
                 Case 1: r.Font.ColorIndex = xlColorIndexAutomatic
                 Case 2: r.Font.Color = b(3)

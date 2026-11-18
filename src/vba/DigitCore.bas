@@ -21,6 +21,18 @@ Public Enum DigitResult
     drError = 4         ' unexpected failure; message box
 End Enum
 
+' What a cell contains, for Colour by content. The order is the precedence: a
+' formula that mixes kinds takes the highest.
+Public Enum DigitContentKind
+    ckNone = 0          ' not a formula / leave alone
+    ckInput = 1         ' typed number, or a formula of numbers and operators only
+    ckFormula = 2       ' formula that stays on its own sheet
+    ckSheetLink = 3     ' formula that points at another sheet in the workbook
+    ckExternal = 4      ' formula that points at another workbook
+End Enum
+
+Public Const DIGIT_CONTENT_KINDS As Long = 4
+
 '------------------------------------------------------------------------------
 ' Cycle logic
 '------------------------------------------------------------------------------
@@ -358,4 +370,290 @@ Private Function Core_StripV(ByVal s As String) As String
     If LCase$(Left$(s, 1)) = "v" Then s = Mid$(s, 2)
     If Len(s) = 0 Then s = "0"
     Core_StripV = s
+End Function
+
+'------------------------------------------------------------------------------
+' Colour by content: what kind of thing a formula is
+'------------------------------------------------------------------------------
+
+' Classifies a formula by where it gets its numbers from.
+'   formula   the cell's formula text, starting with "=" (English; A1 or R1C1
+'             notation both work). Anything else returns ckNone.
+'   ownSheet  name of the sheet the cell is on.
+'   names     LCase(name) -> the formula the name refers to. Sheet-scoped names
+'             are keyed LCase(sheet) & "!" & LCase(name); tables are keyed by
+'             LCase(table name) with a target such as "='Sheet'!A1". Can be
+'             Nothing.
+'   sheets    LCase(sheet name) -> True for every sheet in the workbook, so a
+'             qualifier that is not a sheet (Book.xlsx!Name) reads as external.
+'             The workbook's own name can be listed too, with any String as
+'             its value: it then makes no link. Can be Nothing; every
+'             unbracketed qualifier then counts as a sheet.
+'
+' Text in double quotes is never read as a reference. The strongest kind wins:
+' external, then sheet link, then formula. A formula made only of numbers and
+' operators (=1000*12) is an input.
+Public Function Core_ClassifyFormula(ByVal formula As String, ByVal ownSheet As String, _
+                                     ByVal names As Scripting.Dictionary, _
+                                     ByVal sheets As Scripting.Dictionary) As DigitContentKind
+    Core_ClassifyFormula = Cls_Scan(formula, LCase$(ownSheet), names, sheets, 0)
+End Function
+
+Private Function Cls_Scan(ByVal f As String, ByVal ownLower As String, ByVal names As Scripting.Dictionary, _
+                          ByVal sheets As Scripting.Dictionary, ByVal depth As Long) As DigitContentKind
+    Dim n As Long, i As Long, j As Long, k As Long, d As Long
+    Dim ch As String, c As String, q As String, w As String, target As String
+    Dim kind As DigitContentKind, bang As Boolean, was As Boolean, handled As Boolean
+
+    If Left$(f, 1) <> "=" Then Exit Function
+    n = Len(f)
+    i = 2
+    kind = ckInput
+
+    Do While i <= n
+        ch = Mid$(f, i, 1)
+        was = bang                      ' the previous token was "Sheet!" or "[Book]Sheet!"
+        bang = False
+
+        If ch = """" Then
+            ' Text literal: skip it ("" is an escaped quote).
+            Cls_Raise kind, ckFormula
+            i = i + 1
+            Do While i <= n
+                If Mid$(f, i, 1) = """" Then
+                    If Mid$(f, i + 1, 1) = """" Then
+                        i = i + 2
+                    Else
+                        Exit Do
+                    End If
+                Else
+                    i = i + 1
+                End If
+            Loop
+            i = i + 1
+
+        ElseIf ch = "'" Then
+            ' Quoted qualifier: 'My Sheet'!A1, 'C:\path\[Book.xlsx]Sheet1'!A1
+            j = i + 1
+            q = ""
+            Do While j <= n
+                If Mid$(f, j, 1) = "'" Then
+                    If Mid$(f, j + 1, 1) = "'" Then
+                        q = q & "'"
+                        j = j + 2
+                    Else
+                        Exit Do
+                    End If
+                Else
+                    q = q & Mid$(f, j, 1)
+                    j = j + 1
+                End If
+            Loop
+            i = j + 1
+            If Mid$(f, i, 1) = "!" Then
+                Cls_Raise kind, Cls_Qualifier(q, ownLower, sheets)
+                i = i + 1
+                bang = True
+            Else
+                Cls_Raise kind, ckFormula
+            End If
+
+        ElseIf ch = "[" Then
+            ' Either a workbook ([Book.xlsx]Sheet1!A1) or a structured / R1C1
+            ' reference (Table1[Amount], [@Amount], RC[-1]). Only the first is
+            ' followed by a sheet name and "!".
+            d = 1
+            j = i + 1
+            Do While j <= n And d > 0
+                c = Mid$(f, j, 1)
+                If c = "'" Then
+                    j = j + 2           ' ' escapes the next character in a column name
+                Else
+                    If c = "[" Then d = d + 1
+                    If c = "]" Then d = d - 1
+                    j = j + 1
+                End If
+            Loop
+            i = j
+            k = i
+            Do While k <= n
+                c = Mid$(f, k, 1)
+                If Not (Cls_IsWord(c) Or c = ":") Then Exit Do
+                k = k + 1
+            Loop
+            If k > i And Mid$(f, k, 1) = "!" Then
+                Cls_Raise kind, ckExternal
+                i = k + 1
+                bang = True
+            Else
+                Cls_Raise kind, ckFormula
+            End If
+
+        ElseIf Cls_IsWordStart(ch) Then
+            j = i
+            Do While j <= n
+                If Not Cls_IsWord(Mid$(f, j, 1)) Then Exit Do
+                j = j + 1
+            Loop
+            w = Mid$(f, i, j - i)
+            i = j
+            c = Mid$(f, i, 1)
+            handled = False
+
+            If was Then
+                ' The reference or name after "Sheet!": already accounted for.
+                Cls_Raise kind, ckFormula
+                handled = True
+            ElseIf c = "!" Then
+                Cls_Raise kind, Cls_Qualifier(w, ownLower, sheets)
+                i = i + 1
+                bang = True
+                handled = True
+            ElseIf c = ":" Then
+                ' Jan:Dec!B5 is a 3D reference; A1:B2 is not.
+                k = i + 1
+                Do While k <= n
+                    If Not Cls_IsWord(Mid$(f, k, 1)) Then Exit Do
+                    k = k + 1
+                Loop
+                If k > i + 1 And Mid$(f, k, 1) = "!" Then
+                    Cls_Raise kind, Cls_Qualifier(w & ":" & Mid$(f, i + 1, k - i - 1), ownLower, sheets)
+                    i = k + 1
+                    bang = True
+                    handled = True
+                End If
+            End If
+
+            If Not handled Then
+                If c = "(" Then
+                    Cls_Raise kind, ckFormula                   ' a function
+                ElseIf StrComp(w, "TRUE", vbTextCompare) <> 0 And StrComp(w, "FALSE", vbTextCompare) <> 0 Then
+                    ' A cell reference, a defined name, a table, or an unknown word.
+                    Cls_Raise kind, ckFormula
+                    If Not names Is Nothing And depth < 5 Then
+                        target = ""
+                        If names.Exists(ownLower & "!" & LCase$(w)) Then
+                            target = names(ownLower & "!" & LCase$(w))
+                        ElseIf names.Exists(LCase$(w)) Then
+                            target = names(LCase$(w))
+                        End If
+                        If Len(target) > 0 Then Cls_Raise kind, Cls_Scan(target, ownLower, names, sheets, depth + 1)
+                    End If
+                End If
+            End If
+
+        ElseIf Cls_IsDigit(ch) Or (ch = "." And Cls_IsDigit(Mid$(f, i + 1, 1))) Then
+            ' A number, with an optional exponent (1E+3).
+            j = i
+            Do While j <= n
+                c = Mid$(f, j, 1)
+                If Not (Cls_IsDigit(c) Or c = ".") Then Exit Do
+                j = j + 1
+            Loop
+            c = Mid$(f, j, 1)
+            If c = "E" Or c = "e" Then
+                k = j + 1
+                c = Mid$(f, k, 1)
+                If c = "+" Or c = "-" Then k = k + 1
+                If Cls_IsDigit(Mid$(f, k, 1)) Then
+                    Do While Cls_IsDigit(Mid$(f, k, 1))
+                        k = k + 1
+                    Loop
+                    j = k
+                End If
+            End If
+            i = j
+
+        ElseIf ch = "#" Then
+            ' An error literal (#REF!, #N/A, #DIV/0!) or the spill operator (A1#).
+            j = i + 1
+            Do While j <= n
+                c = Mid$(f, j, 1)
+                If Not (Cls_IsLetter(c) Or c = "/" Or c = "0") Then Exit Do
+                j = j + 1
+            Loop
+            If j > i + 1 Then
+                Cls_Raise kind, ckFormula
+                c = Mid$(f, j, 1)
+                If c = "!" Or c = "?" Then j = j + 1
+            End If
+            i = j
+
+        ElseIf ch = ":" Then
+            Cls_Raise kind, ckFormula       ' a range such as 1:1
+            i = i + 1
+
+        Else
+            i = i + 1
+        End If
+    Loop
+
+    Cls_Scan = kind
+End Function
+
+' Kind of link a qualifier (the text before "!") makes: none when it is the
+' cell's own sheet.
+Private Function Cls_Qualifier(ByVal q As String, ByVal ownLower As String, _
+                               ByVal sheets As Scripting.Dictionary) As DigitContentKind
+    Dim p As Long, first As String
+
+    ' A workbook in brackets or a path: sheet names cannot contain [ \ /.
+    If InStr(q, "[") > 0 Or InStr(q, "\") > 0 Or InStr(q, "/") > 0 Then
+        Cls_Qualifier = ckExternal
+        Exit Function
+    End If
+
+    p = InStr(q, ":")                   ' Jan:Dec, a 3D reference
+    If p > 0 Then first = Left$(q, p - 1) Else first = q
+    first = LCase$(first)
+
+    If Not sheets Is Nothing Then
+        If Not sheets.Exists(first) Then
+            Cls_Qualifier = ckExternal  ' Book.xlsx!Name, PERSONAL.XLSB!MyFn
+            Exit Function
+        End If
+        If VarType(sheets(first)) = vbString Then
+            Cls_Qualifier = ckFormula   ' this workbook's own name, not a sheet
+            Exit Function
+        End If
+    End If
+
+    If p = 0 And first = ownLower Then
+        Cls_Qualifier = ckFormula
+    Else
+        Cls_Qualifier = ckSheetLink
+    End If
+End Function
+
+' Raises kind to k when k is stronger. Anything that is not a plain number
+' makes the formula at least ckFormula.
+Private Sub Cls_Raise(ByRef kind As DigitContentKind, ByVal k As DigitContentKind)
+    If k < ckFormula Then k = ckFormula
+    If k > kind Then kind = k
+End Sub
+
+Private Function Cls_IsDigit(ByVal ch As String) As Boolean
+    If Len(ch) <> 1 Then Exit Function
+    Cls_IsDigit = (ch >= "0" And ch <= "9")
+End Function
+
+Private Function Cls_IsLetter(ByVal ch As String) As Boolean
+    If Len(ch) <> 1 Then Exit Function
+    Cls_IsLetter = (ch >= "A" And ch <= "Z") Or (ch >= "a" And ch <= "z")
+End Function
+
+' First character of a word: a letter, _ \ $ (as in $A$1), or any non-ASCII
+' character (sheet and range names in other languages).
+Private Function Cls_IsWordStart(ByVal ch As String) As Boolean
+    If Len(ch) <> 1 Then Exit Function
+    If Cls_IsLetter(ch) Or ch = "_" Or ch = "\" Or ch = "$" Then
+        Cls_IsWordStart = True
+    Else
+        Cls_IsWordStart = (AscW(ch) > 127 Or AscW(ch) < 0)
+    End If
+End Function
+
+Private Function Cls_IsWord(ByVal ch As String) As Boolean
+    If Len(ch) <> 1 Then Exit Function
+    Cls_IsWord = Cls_IsWordStart(ch) Or Cls_IsDigit(ch) Or ch = "." Or ch = "?"
 End Function

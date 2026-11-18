@@ -235,6 +235,49 @@ Public Sub Digit_OnReload(ByVal control As IRibbonControl)
 End Sub
 
 '------------------------------------------------------------------------------
+' Colour by content
+'------------------------------------------------------------------------------
+
+Public Sub Digit_OnColour(ByVal control As IRibbonControl)
+    App_RunColour
+End Sub
+
+Public Sub Digit_GetColourScreentip(ByVal control As IRibbonControl, ByRef returnedVal)
+    Dim key As String
+    returnedVal = "Colour by content"
+    On Error Resume Next
+    key = App_ColourShortcut()
+    If Len(key) > 0 Then returnedVal = "Colour by content (" & key & ")"
+End Sub
+
+' Lists the colour each kind of cell gets, from Settings.
+Public Sub Digit_GetColourSupertip(ByVal control As IRibbonControl, ByRef returnedVal)
+    Dim cfg As Scripting.Dictionary, s As String
+    s = "Sets the font colour of each selected cell by what it contains. Nothing else about the cell changes."
+    returnedVal = s
+    On Error Resume Next
+    Set cfg = Store_Config()
+    s = s & vbLf & "Typed numbers (inputs): " & ColourTip(Store_ContentColor(cfg, ckInput)) & _
+            vbLf & "Formulas: " & ColourTip(Store_ContentColor(cfg, ckFormula)) & _
+            vbLf & "Links to other sheets: " & ColourTip(Store_ContentColor(cfg, ckSheetLink)) & _
+            vbLf & "Links to other files: " & ColourTip(Store_ContentColor(cfg, ckExternal)) & _
+            vbLf & "Text and blank cells are left alone. Change the colours in Settings."
+    returnedVal = s
+End Sub
+
+Private Function ColourTip(ByVal hexColor As String) As String
+    Select Case UCase$(hexColor)
+        Case "": ColourTip = "left alone"
+        Case "#0000FF": ColourTip = "blue"
+        Case "#000000": ColourTip = "black"
+        Case "#008000": ColourTip = "green"
+        Case "#C00000": ColourTip = "dark red"
+        Case "#FF0000": ColourTip = "red"
+        Case Else: ColourTip = hexColor
+    End Select
+End Function
+
+'------------------------------------------------------------------------------
 ' Helpers
 '------------------------------------------------------------------------------
 

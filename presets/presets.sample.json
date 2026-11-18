@@ -9,7 +9,14 @@
       "Ctrl+Alt+4",
       "Ctrl+Alt+5"
     ],
-    "undoDepth": 10
+    "undoDepth": 10,
+    "contentColors": {
+      "input": "#0000FF",
+      "formula": "#000000",
+      "sheetLink": "#008000",
+      "externalLink": "#C00000"
+    },
+    "contentColorShortcut": "Ctrl+Alt+6"
   },
   "slots": [
     "Numbers",
