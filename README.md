@@ -15,8 +15,9 @@ Phase 1 (this repository) is a VBA add-in (`Digit.xlam`). Presets are kept in a 
 | **Cycle logic** | The active cell's current format picks the next preset. A format that matches no preset gets preset 1. |
 | **Targeting** | Normal ranges and multi-area selections. A single cell in an Excel table formats the whole table column. A pivot values cell sets the DataField's number format, so it survives refresh. |
 | **Undo Format** | Digit keeps its own history of the last 10 changes. Ctrl+Z works straight after a change. |
-| **Shortcuts** | Ctrl+Alt+1 … Ctrl+Alt+5 by default. You can change them in Settings. |
-| **Settings** | Two tabs. *Presets*: groups in ribbon order, button pictures, and the preset editor (format, colours, bold / italic / underline, live preview). *Ribbon & shortcuts*: shortcuts, large buttons, daily update check, import/export. |
+| **Colour by content** | One click colours every selected cell's font by what it holds: blue for typed inputs, black for formulas, green for links to other sheets, dark red for links to other files. Only the font colour changes. The colours are yours to set. See [docs/PRESETS.md](docs/PRESETS.md#colour-by-content). |
+| **Shortcuts** | Ctrl+Alt+1 … Ctrl+Alt+5 for the quick buttons and Ctrl+Alt+6 for Colour by content by default. You can change them in Settings. |
+| **Settings** | Three tabs. *Presets*: groups in ribbon order, button pictures, and the preset editor (format, colours, bold / italic / underline, live preview). *Ribbon & shortcuts*: shortcuts, large buttons, daily update check, import/export. *Colour by content*: its four colours and shortcut. |
 | **Updates** | **Check for updates** in the Digit menu, plus a quiet daily check when Excel starts. A new version is built and tested in the background and installed when you close Excel. See [docs/INSTALL.md](docs/INSTALL.md#updates). |
 | **Storage** | `%APPDATA%\Digit\presets.json`. It survives add-in updates and can be shared with your team. |
 
@@ -37,11 +38,11 @@ This builds `dist\Digit.xlam`, runs the self-tests in a hidden Excel, and instal
 ```
 src/
   ribbon/customUI14.xml           Ribbon definition (callbacks in DigitRibbon.bas)
-  ribbon/images/                  Custom ribbon pictures (digitIcon.png), packed in by the build
+  ribbon/images/                  Custom ribbon pictures (digitIcon.png, colourIcon.png), packed in by the build
   icons/                          Digit's number icons for quick buttons (and make_icons.py)
   vba/
-    DigitCore.bas                 Pure logic: cycle rules, colours, shortcuts (no Excel objects)
-    DigitFormat.bas               Engine: targeting, choosing the next preset, applying (no UI)
+    DigitCore.bas                 Pure logic: cycle rules, colours, shortcuts, formula classifier (no Excel objects)
+    DigitFormat.bas               Engine: targeting, choosing the next preset, applying; Colour by content (no UI)
     DigitUndo.bas                 Undo snapshots and history (no UI)
     DigitIcons.bas                Digit's own button pictures: unpacks them and loads PNGs (GDI+)
     DigitUpdate.bas               Checks the release branch for updates and starts the installer (no UI)

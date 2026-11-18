@@ -38,6 +38,14 @@ The engine reports back with a `DigitResult` code and a message (`drOK`, `drNoth
 
 `DigitApp` then arms `Application.OnUndo` for Ctrl+Z and refreshes the Undo button.
 
+**Click Colour by content:** `Digit_OnColour` (or its shortcut) → `App_RunColour` → `Fmt_ColourByContent`, which does the following:
+1. Limits the selection to the sheet's used range and finds the constant cells (numbers, logicals, errors) and the formula cells with `SpecialCells`, leaving out pivot tables.
+2. Builds two lookups for the workbook: where each defined name and table points, and the sheet names.
+3. Reads the formulas area by area as R1C1 text and classifies each distinct text once with `Core_ClassifyFormula`. The classifier is pure string logic in `DigitCore`.
+4. Collects the cells of each kind as ranges, snapshots their font colours with `Undo_CaptureFont` (font only, no number format), and sets one colour per kind.
+
+It then reports and arms undo the same way as a quick button.
+
 **Presets changed** (Settings > Save, Reload, or import): `App_OnPresetsChanged` clears the format cache, re-registers the shortcuts, and calls `IRibbonUI.Invalidate`. Labels, visibility and the More menu all update through the callbacks.
 
 **Loss of VBA state:** an unhandled error or a VBA reset clears module variables. `Store_Config()` reloads lazily. The ribbon handle is recovered from the pointer saved on the add-in's hidden sheet. Every entry point calls `Digit_Startup`, which only runs once.
@@ -47,7 +55,7 @@ The engine reports back with a `DigitResult` code and a message (`drOK`, `drNoth
 The port should keep these unchanged:
 - `customUI14.xml`: the same control ids and callback names, mapped to C# methods with the same signatures.
 - `presets.json`: the schema in [PRESETS.md](PRESETS.md). Colours are `#RRGGBB` strings, shortcuts are readable text, and number formats use English codes, so nothing in the file is VBA-specific.
-- The cycle rules (`Core_BestMatch`, `Core_NextIndex`) and targeting (`Fmt_RangeTarget`, `Fmt_PivotTarget`). They translate method for method.
+- The cycle rules (`Core_BestMatch`, `Core_NextIndex`), the formula classifier (`Core_ClassifyFormula`) and targeting (`Fmt_RangeTarget`, `Fmt_PivotTarget`). They translate method for method.
 
 Differences to plan for:
 
