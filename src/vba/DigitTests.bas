@@ -200,7 +200,9 @@ Private Sub Test_SettingsForm()
     Set f = New frmDigitSettings
     Check f.Controls("lstGroups").ListCount > 0, "settings lists the preset groups"
     Check Not f.Controls("fraIcons").Visible, "icon picker starts closed"
-    CheckEq f.Controls("mpTabs").Pages.Count, 2, "settings has two tabs"
+    CheckEq f.Controls("mpTabs").Pages.Count, 3, "settings has three tabs"
+    CheckEq f.Controls("txtKeyColour").Text, Store_ContentShortcut(Store_Config()), "colour by content shortcut shown"
+    Check Len(f.Controls("lblCcSwatch4").ControlTipText) > 0, "colour by content swatches filled"
     Check f.Controls("chkBold").TripleState, "bold box has a leave-as-is state"
     CheckEq Left$(f.Controls("lblSlot1").Caption, 1), "1", "shortcut rows are numbered"
     Unload f
