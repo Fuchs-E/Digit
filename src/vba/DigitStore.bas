@@ -14,6 +14,9 @@ Attribute VB_Name = "DigitStore"
 '   cfg("settings")("shortcutsEnabled")  Boolean
 '   cfg("settings")("shortcuts")   Collection of 5 Strings ("Ctrl+Alt+1" or "")
 '   cfg("settings")("undoDepth")   Long, 1..50
+'   cfg("settings")("contentColors")  Dictionary: "input", "formula", "sheetLink",
+'                                  "externalLink" -> "#RRGGBB" or "" (Colour by content)
+'   cfg("settings")("contentColorShortcut")  String ("Ctrl+Alt+6" or "")
 '   cfg("slots")                   Collection of 5 Strings: the names of the first five
 '                                  groups (the quick buttons, left to right). Derived from
 '                                  the group order and kept in the file for older versions;
@@ -30,6 +33,7 @@ Attribute VB_Name = "DigitStore"
 Option Explicit
 
 Public Const DIGIT_FILE_VERSION As Long = 1
+Public Const DIGIT_CONTENT_SHORTCUT As String = "Ctrl+Alt+6"   ' default for Colour by content
 
 Private mCfg As Scripting.Dictionary
 Private mPathOverride As String
@@ -279,6 +283,58 @@ Public Function Store_UndoDepth(ByVal cfg As Scripting.Dictionary) As Long
     Store_UndoDepth = cfg("settings")("undoDepth")
 End Function
 
+'------------------------------------------------------------------------------
+' Colour by content settings
+'------------------------------------------------------------------------------
+
+' JSON key of a content kind under settings.contentColors ("" for ckNone).
+Public Function Store_ContentKey(ByVal kind As DigitContentKind) As String
+    Select Case kind
+        Case ckInput: Store_ContentKey = "input"
+        Case ckFormula: Store_ContentKey = "formula"
+        Case ckSheetLink: Store_ContentKey = "sheetLink"
+        Case ckExternal: Store_ContentKey = "externalLink"
+    End Select
+End Function
+
+' The standard modelling colour of a content kind.
+Public Function Store_ContentDefault(ByVal kind As DigitContentKind) As String
+    Select Case kind
+        Case ckInput: Store_ContentDefault = "#0000FF"
+        Case ckFormula: Store_ContentDefault = "#000000"
+        Case ckSheetLink: Store_ContentDefault = "#008000"
+        Case ckExternal: Store_ContentDefault = "#C00000"
+    End Select
+End Function
+
+' "#RRGGBB", or "" when cells of this kind are to be left alone.
+Public Function Store_ContentColor(ByVal cfg As Scripting.Dictionary, ByVal kind As DigitContentKind) As String
+    Dim d As Object
+    Store_ContentColor = Store_ContentDefault(kind)
+    If Not cfg("settings").Exists("contentColors") Then Exit Function
+    Set d = cfg("settings")("contentColors")
+    If d.Exists(Store_ContentKey(kind)) Then Store_ContentColor = d(Store_ContentKey(kind))
+End Function
+
+Public Sub Store_SetContentColor(ByVal cfg As Scripting.Dictionary, ByVal kind As DigitContentKind, ByVal hexColor As String)
+    Dim d As Scripting.Dictionary
+    If Len(Store_ContentKey(kind)) = 0 Then Exit Sub
+    If Not cfg("settings").Exists("contentColors") Then
+        Set d = New Scripting.Dictionary
+        Set cfg("settings")("contentColors") = d
+    End If
+    Set d = cfg("settings")("contentColors")
+    d(Store_ContentKey(kind)) = Core_NormalizeHex(hexColor)
+End Sub
+
+Public Function Store_ContentShortcut(ByVal cfg As Scripting.Dictionary) As String
+    If cfg("settings").Exists("contentColorShortcut") Then Store_ContentShortcut = cfg("settings")("contentColorShortcut")
+End Function
+
+Public Sub Store_SetContentShortcut(ByVal cfg As Scripting.Dictionary, ByVal shortcut As String)
+    cfg("settings")("contentColorShortcut") = shortcut
+End Sub
+
 ' Renames a group (its place in the list, and so on the ribbon, stays).
 Public Sub Store_RenameGroup(ByVal cfg As Scripting.Dictionary, ByVal oldName As String, ByVal newName As String)
     Dim g As Scripting.Dictionary
@@ -427,6 +483,12 @@ Public Function Store_DefaultConfig() As Scripting.Dictionary
     settings("undoDepth") = 10
     settings("checkForUpdates") = True
     settings("largeButtons") = False
+    Dim colours As New Scripting.Dictionary
+    For i = ckInput To ckExternal
+        colours(Store_ContentKey(i)) = Store_ContentDefault(i)
+    Next i
+    Set settings("contentColors") = colours
+    settings("contentColorShortcut") = DIGIT_CONTENT_SHORTCUT
 
     cfg("version") = DIGIT_FILE_VERSION
     Set cfg("settings") = settings
@@ -554,6 +616,35 @@ Public Function Store_Normalize(ByVal src As Object) As Scripting.Dictionary
     settings("undoDepth") = depth
     settings("checkForUpdates") = DictBool(srcSettings, "checkForUpdates", True)
     settings("largeButtons") = DictBool(srcSettings, "largeButtons", False)
+
+    ' --- colour by content: a missing or invalid colour gets the standard
+    ' one, "" (leave these cells alone) is kept. The shortcut gives way to a
+    ' quick button that already uses the same keys.
+    Dim srcColours As Object, colours As New Scripting.Dictionary, kind As Long
+    Dim ck As String, raw As String, sc As String, code As String
+    Set srcColours = DictObject(srcSettings, "contentColors")
+    If TypeName(srcColours) <> "Dictionary" Then Set srcColours = Nothing
+    For kind = ckInput To ckExternal
+        ck = Store_ContentKey(kind)
+        raw = DictString(srcColours, ck, Store_ContentDefault(kind))
+        If Len(Trim$(raw)) = 0 Then
+            colours(ck) = ""
+        ElseIf Len(Core_NormalizeHex(raw)) > 0 Then
+            colours(ck) = Core_NormalizeHex(raw)
+        Else
+            colours(ck) = Store_ContentDefault(kind)
+        End If
+    Next kind
+    Set settings("contentColors") = colours
+
+    sc = Core_NormalizeShortcut(DictString(srcSettings, "contentColorShortcut", DIGIT_CONTENT_SHORTCUT))
+    code = Core_ShortcutToOnKey(sc)
+    If Len(code) > 0 Then
+        For i = 1 To DIGIT_SLOT_COUNT
+            If Core_ShortcutToOnKey(keys(i)) = code Then sc = ""
+        Next i
+    End If
+    settings("contentColorShortcut") = sc
 
     cfg("version") = DIGIT_FILE_VERSION
     Set cfg("settings") = settings

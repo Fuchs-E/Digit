@@ -40,6 +40,7 @@ Public Function RunAllTests(Optional ByVal tempFolder As String = "") As String
     Test_Collections
     Test_Classify
     Test_Normalize
+    Test_ContentSettings
     Test_StoreRoundTrip
     Test_FormatUtilities
     Test_RangeCycleAndUndo
@@ -303,6 +304,45 @@ Private Sub Test_Normalize()
 
     Check Store_ParseConfig("not json", errMsg) Is Nothing, "invalid json rejected"
     Check Store_ParseConfig("{""groups"":[]}", errMsg) Is Nothing, "no groups rejected"
+End Sub
+
+' Colour by content settings: defaults, repair, and the shortcut giving way.
+Private Sub Test_ContentSettings()
+    Dim cfg As Scripting.Dictionary, errMsg As String, grp As String
+    grp = """groups"":[{""name"":""X"",""presets"":[{""numberFormat"":""0""}]}]"
+
+    Set cfg = Store_ParseConfig("{" & grp & "}", errMsg)
+    Check Not cfg Is Nothing, "content settings: parse ok"
+    If cfg Is Nothing Then Exit Sub
+    CheckEq Store_ContentColor(cfg, ckInput), "#0000FF", "default input colour"
+    CheckEq Store_ContentColor(cfg, ckFormula), "#000000", "default formula colour"
+    CheckEq Store_ContentColor(cfg, ckSheetLink), "#008000", "default sheet link colour"
+    CheckEq Store_ContentColor(cfg, ckExternal), "#C00000", "default external colour"
+    CheckEq Store_ContentShortcut(cfg), "Ctrl+Alt+6", "default content shortcut"
+
+    Set cfg = Store_ParseConfig("{" & grp & ",""settings"":{""contentColors"":" & _
+                                "{""input"":"""",""formula"":""zzz"",""sheetLink"":""#00ff00""}," & _
+                                """contentColorShortcut"":""ctrl+shift+k""}}", errMsg)
+    CheckEq Store_ContentColor(cfg, ckInput), "", "blank colour kept (skip this kind)"
+    CheckEq Store_ContentColor(cfg, ckFormula), "#000000", "invalid colour repaired to the default"
+    CheckEq Store_ContentColor(cfg, ckSheetLink), "#00FF00", "colour upper-cased"
+    CheckEq Store_ContentColor(cfg, ckExternal), "#C00000", "missing colour gets the default"
+    CheckEq Store_ContentShortcut(cfg), "Ctrl+Shift+K", "content shortcut normalised"
+
+    Set cfg = Store_Clone(cfg)
+    CheckEq Store_ContentColor(cfg, ckInput), "", "blank colour survives a save"
+    CheckEq Store_ContentColor(cfg, ckSheetLink), "#00FF00", "colour survives a save"
+    CheckEq Store_ContentShortcut(cfg), "Ctrl+Shift+K", "content shortcut survives a save"
+
+    Store_SetContentColor cfg, ckExternal, "#ff0000"
+    CheckEq Store_ContentColor(cfg, ckExternal), "#FF0000", "set colour"
+    Store_SetContentColor cfg, ckExternal, ""
+    CheckEq Store_ContentColor(cfg, ckExternal), "", "clear colour"
+
+    ' A quick button that already uses Ctrl+Alt+6 keeps it.
+    Set cfg = Store_ParseConfig("{" & grp & ",""settings"":{""shortcuts"":[""Ctrl+Alt+6"","""","""","""",""""]}}", errMsg)
+    CheckEq Store_ContentShortcut(cfg), "", "content shortcut gives way to a quick button"
+    CheckEq cfg("settings")("shortcuts")(1), "Ctrl+Alt+6", "quick button keeps its shortcut"
 End Sub
 
 Private Sub Test_StoreRoundTrip()
