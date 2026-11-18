@@ -28,12 +28,17 @@ Private mDirty As Boolean
 '------------------------------------------------------------------------------
 
 Private Sub UserForm_Initialize()
+    Dim i As Long
     Me.Caption = "Digit " & DIGIT_VERSION & " - Settings"
     mpTabs.Value = 0
     mLoading = True
     txtSample.Text = Format$(SAMPLE_DEFAULT, "0.000")
     FillFormatSuggestions
     FillIconSuggestions
+    cboCcSlot.AddItem "After Undo Format, as its own button"
+    For i = 1 To DIGIT_SLOT_COUNT
+        cboCcSlot.AddItem "In place of quick button " & i
+    Next i
     mLoading = False
     LoadAll Store_Clone(Store_Config())
     mDirty = False
@@ -88,6 +93,7 @@ Private Sub LoadAll(ByVal cfg As Scripting.Dictionary)
         KeyBox(i).ForeColor = vbWindowText
     Next i
     txtKeyColour.Text = Store_ContentShortcut(mCfg)
+    cboCcSlot.ListIndex = Store_ColourSlot(mCfg)
     txtKeyColour.ForeColor = vbWindowText
     mLoading = False
     RefreshGroups 1
@@ -101,17 +107,19 @@ End Sub
 ' Groups
 '------------------------------------------------------------------------------
 
-' The group list shows the ribbon order: groups 1-5 numbered, then a divider
+' The group list shows the ribbon order: the groups on quick buttons numbered
+' by position (five, or four when Colour by content takes a position), then a divider
 ' row, then the groups that appear in the Digit menu. These two functions map
 ' between list rows and group numbers (0 = the divider / nothing).
 Private Function CurGroupIndex() As Long
-    Dim li As Long
+    Dim li As Long, q As Long
     li = lstGroups.ListIndex
     If li < 0 Then Exit Function
-    If mCfg("groups").Count > DIGIT_SLOT_COUNT Then
-        If li < DIGIT_SLOT_COUNT Then
+    q = Store_QuickGroupCount(mCfg)
+    If mCfg("groups").Count > q Then
+        If li < q Then
             CurGroupIndex = li + 1
-        ElseIf li > DIGIT_SLOT_COUNT Then
+        ElseIf li > q Then
             CurGroupIndex = li                      ' one divider row above
         End If
     Else
@@ -121,7 +129,7 @@ Private Function CurGroupIndex() As Long
 End Function
 
 Private Function ListRowOfGroup(ByVal gi As Long) As Long
-    If gi > DIGIT_SLOT_COUNT And mCfg("groups").Count > DIGIT_SLOT_COUNT Then
+    If gi > Store_QuickGroupCount(mCfg) And mCfg("groups").Count > Store_QuickGroupCount(mCfg) Then
         ListRowOfGroup = gi                         ' skip the divider
     Else
         ListRowOfGroup = gi - 1
@@ -136,14 +144,16 @@ Private Function CurGroup() As Scripting.Dictionary
 End Function
 
 Private Sub RefreshGroups(ByVal selectIndex As Long)
-    Dim i As Long, n As Long
+    Dim i As Long, n As Long, q As Long
     mLoading = True
     lstGroups.Clear
     n = mCfg("groups").Count
+    q = Store_QuickGroupCount(mCfg)
     For i = 1 To n
-        If i = DIGIT_SLOT_COUNT + 1 Then lstGroups.AddItem MENU_DIVIDER
-        If i <= DIGIT_SLOT_COUNT Then
-            lstGroups.AddItem i & "    " & mCfg("groups")(i)("name")
+        If i = q + 1 Then lstGroups.AddItem MENU_DIVIDER
+        If i <= q Then
+            ' Numbered by quick-button position (Colour by content may hold one).
+            lstGroups.AddItem Store_GroupSlot(mCfg, i) & "    " & mCfg("groups")(i)("name")
         Else
             lstGroups.AddItem "       " & mCfg("groups")(i)("name")
         End If
@@ -902,6 +912,7 @@ Private Sub RefreshSlots()
     Dim i As Long, nm As String
     For i = 1 To DIGIT_SLOT_COUNT
         nm = Store_SlotGroupName(mCfg, i)
+        If Store_ColourSlot(mCfg) = i Then nm = "Colour by content"
         If Len(nm) = 0 Then nm = "(no group)"
         Me.Controls("lblSlot" & i).Caption = i & "    " & nm
     Next i
@@ -991,6 +1002,19 @@ Private Sub btnCcReset_Click()
     Next k
     mDirty = True
     RefreshContentColours
+End Sub
+
+' Where the Colour by content button sits: 0 = its own button, 1 to 5 = in
+' place of that quick button (the list index is the position).
+Private Sub cboCcSlot_Change()
+    Dim gi As Long
+    If mLoading Then Exit Sub
+    If cboCcSlot.ListIndex < 0 Then Exit Sub
+    gi = CurGroupIndex()
+    Store_SetColourSlot mCfg, cboCcSlot.ListIndex
+    mDirty = True
+    RefreshGroups gi
+    RefreshSlots
 End Sub
 
 Private Sub txtKeyColour_Change()

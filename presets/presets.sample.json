@@ -16,7 +16,8 @@
       "sheetLink": "#008000",
       "externalLink": "#C00000"
     },
-    "contentColorShortcut": "Ctrl+Alt+6"
+    "contentColorShortcut": "Ctrl+Alt+6",
+    "contentColorSlot": 0
   },
   "slots": [
     "Numbers",

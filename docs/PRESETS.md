@@ -19,7 +19,8 @@ Each time Digit saves the file, it keeps the previous version as `presets.json.b
       "sheetLink": "#008000",
       "externalLink": "#C00000"
     },
-    "contentColorShortcut": "Ctrl+Alt+6"
+    "contentColorShortcut": "Ctrl+Alt+6",
+    "contentColorSlot": 0
   },
   "slots": ["Numbers", "Thousands", "Percent", "Currency", ""],
   "groups": [
@@ -44,7 +45,8 @@ Each time Digit saves the file, it keeps the previous version as `presets.json.b
 | `settings.undoDepth` | number | How many changes Undo Format remembers (1 to 50, default 10). |
 | `settings.contentColors` | object | The font colours **Colour by content** applies: `input`, `formula`, `sheetLink` and `externalLink`, each `"#RRGGBB"`, or `""` to leave cells of that kind alone. See [Colour by content](#colour-by-content). |
 | `settings.contentColorShortcut` | string | The shortcut for Colour by content (default `"Ctrl+Alt+6"`, `""` for none). It follows `shortcutsEnabled`. |
-| `slots` | 5 strings | Written by Digit for reference: the names of the first five groups. **The quick buttons are the first five groups in `groups`, left to right**; the rest appear in the Digit menu. When Digit reads a file, groups named in `slots` move to the front in that order, so files from older versions keep their buttons. |
+| `settings.contentColorSlot` | number | Where the Colour by content button sits. `0` (default): its own button after Undo Format. `1` to `5`: in place of that quick button. Four preset groups then stay on quick buttons, around it in list order, and the rest are in the Digit menu. That position's shortcut in `settings.shortcuts` runs Colour by content too. |
+| `slots` | 5 strings | Written by Digit for reference: the names of the groups on the quick buttons (`""` at a position Colour by content holds). **The quick buttons are the first five groups in `groups`, left to right**; the rest appear in the Digit menu. When Digit reads a file, groups named in `slots` move to the front in that order, so files from older versions keep their buttons. |
 | `groups[].name` | string | Must be unique (case does not matter) and not empty. It is shown as the button label. |
 | `groups[].icon` | string | Optional. The picture on the group's quick button and in the Digit menu. Either one of Digit's own icons, written `"digit:<name>"` (for example `"digit:pct_green"`; the names are the files in `src/icons`), or a built-in Office icon name (an `imageMso` name) such as `"PercentStyle"`. `""` or an unknown name shows the button number instead. Pick one in **Settings > Button picture > Choose...**, which shows the pictures themselves, a page at a time. |
 | `groups[].presets` | 1 to 3 objects | The cycle order. |
@@ -84,7 +86,7 @@ A blank colour means "leave as is". Digit never removes a colour. Suppose preset
 
 ## Colour by content
 
-The **Colour by content** button (next to Undo Format, default shortcut Ctrl+Alt+6) sets the font colour of every selected cell by what the cell contains. It is the standard financial-modelling convention:
+The **Colour by content** button (next to Undo Format, or in place of a quick button if you choose that in **Settings > Colour by content > Position on the ribbon**; default shortcut Ctrl+Alt+6) sets the font colour of every selected cell by what the cell contains. It is the standard financial-modelling convention:
 
 | Cell contains | Kind | Default colour |
 |---|---|---|

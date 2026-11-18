@@ -16,6 +16,7 @@ Private Declare PtrSafe Sub CopyMemory Lib "kernel32" Alias "RtlMoveMemory" _
 
 Private Const RIBBON_PTR_CELL As String = "B1"
 Private Const MENU_NS As String = "http://schemas.microsoft.com/office/2009/07/customui"
+Private Const COLOUR_ICON As String = "digit:colour"    ' Colour by content, when it sits on a quick button
 
 Private mRibbon As IRibbonUI
 
@@ -74,18 +75,23 @@ End Sub
 
 ' Slots without a group are hidden; groups not on a button are in "More presets".
 Public Sub Digit_GetVisible(ByVal control As IRibbonControl, ByRef returnedVal)
-    returnedVal = (Len(Store_SlotGroupName(Store_Config(), SlotOf(control))) > 0)
+    returnedVal = IsColourSlot(control) Or (Len(Store_SlotGroupName(Store_Config(), SlotOf(control))) > 0)
 End Sub
 
 Public Sub Digit_GetScreentip(ByVal control As IRibbonControl, ByRef returnedVal)
     Dim nm As String, key As String
     nm = Store_SlotGroupName(Store_Config(), SlotOf(control))
+    If IsColourSlot(control) Then nm = "Colour by content"
     key = App_ActiveShortcut(SlotOf(control))
     If Len(key) > 0 Then nm = nm & " (" & key & ")"
     returnedVal = nm
 End Sub
 
 Public Sub Digit_GetSupertip(ByVal control As IRibbonControl, ByRef returnedVal)
+    If IsColourSlot(control) Then
+        Digit_GetColourSupertip control, returnedVal
+        Exit Sub
+    End If
     returnedVal = GroupTip(Store_FindGroup(Store_Config(), Store_SlotGroupName(Store_Config(), SlotOf(control))))
 End Sub
 
@@ -93,6 +99,10 @@ End Sub
 ' otherwise the button number. Returning a name (not a picture) makes the
 ' ribbon draw that built-in icon.
 Public Sub Digit_GetImage(ByVal control As IRibbonControl, ByRef returnedVal)
+    If IsColourSlot(control) Then
+        SetImage returnedVal, COLOUR_ICON
+        Exit Sub
+    End If
     SetImage returnedVal, ButtonIcon(Store_FindGroup(Store_Config(), Store_SlotGroupName(Store_Config(), SlotOf(control))), _
                                      "_" & SlotOf(control))
 End Sub
@@ -241,6 +251,21 @@ End Sub
 Public Sub Digit_OnColour(ByVal control As IRibbonControl)
     App_RunColour
 End Sub
+
+' Its own button is hidden while it sits in place of a quick button.
+Public Sub Digit_GetColourVisible(ByVal control As IRibbonControl, ByRef returnedVal)
+    returnedVal = True
+    On Error Resume Next
+    returnedVal = (Store_ColourSlot(Store_Config()) = 0)
+End Sub
+
+' True for the quick button whose position Colour by content has taken.
+Private Function IsColourSlot(ByVal control As IRibbonControl) As Boolean
+    Dim slot As Long
+    slot = SlotOf(control)
+    If slot < 1 Then Exit Function
+    IsColourSlot = (Store_ColourSlot(Store_Config()) = slot)
+End Function
 
 Public Sub Digit_GetColourScreentip(ByVal control As IRibbonControl, ByRef returnedVal)
     Dim key As String

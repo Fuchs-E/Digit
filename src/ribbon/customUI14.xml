@@ -36,8 +36,11 @@
                   getEnabled="Digit_GetUndoEnabled" onAction="Digit_OnUndo"/>
           <!-- Colour by content: font colour by what each selected cell holds
                (input, formula, sheet link, external link). Colours and its
-               shortcut come from Settings. -->
+               shortcut come from Settings. Settings can also put it in place
+               of a quick button; this button is then hidden and that quick
+               button runs it (see IsColourSlot in DigitRibbon.bas). -->
           <button id="btnDigitColour" label="Colour by content" showLabel="false" getSize="Digit_GetSize" image="colourIcon"
+                  getVisible="Digit_GetColourVisible"
                   getScreentip="Digit_GetColourScreentip" getSupertip="Digit_GetColourSupertip"
                   onAction="Digit_OnColour"/>
           <!-- Everything else: groups 6 onwards, Settings, Reload, Check for

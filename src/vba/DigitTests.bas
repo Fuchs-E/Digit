@@ -181,6 +181,7 @@ Private Sub Test_Icons()
     Dim c As Collection
     Check Icons_List().Count >= 36, "digit icons packed in the add-in"
     Check Icons_Exists("digit:pct_green"), "digit icon unpacked"
+    Check Icons_Exists("digit:colour"), "colour by content icon unpacked"
     Check Not Icons_Exists("digit:no_such_icon"), "unknown digit icon"
     Check Not Icons_Picture("digit:pct_green") Is Nothing, "digit icon picture for the ribbon"
     Check Not Icons_Picture("digit:pct_green", &HFFFFFF) Is Nothing, "digit icon picture for forms"
@@ -203,6 +204,8 @@ Private Sub Test_SettingsForm()
     CheckEq f.Controls("mpTabs").Pages.Count, 3, "settings has three tabs"
     CheckEq f.Controls("txtKeyColour").Text, Store_ContentShortcut(Store_Config()), "colour by content shortcut shown"
     Check Len(f.Controls("lblCcSwatch4").ControlTipText) > 0, "colour by content swatches filled"
+    CheckEq f.Controls("cboCcSlot").ListCount, 6, "colour by content position choices"
+    CheckEq f.Controls("cboCcSlot").ListIndex, Store_ColourSlot(Store_Config()), "colour by content position shown"
     Check f.Controls("chkBold").TripleState, "bold box has a leave-as-is state"
     CheckEq Left$(f.Controls("lblSlot1").Caption, 1), "1", "shortcut rows are numbered"
     Unload f
@@ -351,6 +354,33 @@ Private Sub Test_ContentSettings()
     Set cfg = Store_ParseConfig("{" & grp & ",""settings"":{""shortcuts"":[""Ctrl+Alt+6"","""","""","""",""""]}}", errMsg)
     CheckEq Store_ContentShortcut(cfg), "", "content shortcut gives way to a quick button"
     CheckEq cfg("settings")("shortcuts")(1), "Ctrl+Alt+6", "quick button keeps its shortcut"
+
+    ' Colour by content in place of quick button 4: the groups after it move along.
+    grp = """groups"":[{""name"":""A"",""presets"":[{""numberFormat"":""0""}]},{""name"":""B"",""presets"":[{""numberFormat"":""0""}]}," & _
+          "{""name"":""C"",""presets"":[{""numberFormat"":""0""}]},{""name"":""D"",""presets"":[{""numberFormat"":""0""}]}," & _
+          "{""name"":""E"",""presets"":[{""numberFormat"":""0""}]},{""name"":""F"",""presets"":[{""numberFormat"":""0""}]}]"
+    Set cfg = Store_ParseConfig("{" & grp & "}", errMsg)
+    CheckEq Store_ColourSlot(cfg), 0, "colour by content has its own button by default"
+    CheckEq Store_SlotGroupName(cfg, 5), "E", "own button: five groups on quick buttons"
+    CheckEq Store_GroupSlot(cfg, 5), 5, "own button: group 5 is on button 5"
+    Set cfg = Store_ParseConfig("{" & grp & ",""settings"":{""contentColorSlot"":4}}", errMsg)
+    CheckEq Store_ColourSlot(cfg), 4, "colour slot read"
+    CheckEq Store_QuickGroupCount(cfg), 4, "colour slot: four groups on quick buttons"
+    CheckEq Store_SlotGroupName(cfg, 3), "C", "colour slot: positions before it unchanged"
+    CheckEq Store_SlotGroupName(cfg, 4), "", "colour slot: no group at its position"
+    CheckEq Store_SlotGroupName(cfg, 5), "D", "colour slot: next group moves along"
+    CheckEq Store_GroupSlot(cfg, 3), 3, "colour slot: group 3 on button 3"
+    CheckEq Store_GroupSlot(cfg, 4), 5, "colour slot: group 4 on button 5"
+    CheckEq Store_GroupSlot(cfg, 5), 0, "colour slot: group 5 in the menu"
+    Check Store_IsInSlot(cfg, "D"), "colour slot: group 4 is on a button"
+    Check Not Store_IsInSlot(cfg, "E"), "colour slot: group 5 is not on a button"
+    Set cfg = Store_Clone(cfg)
+    CheckEq Store_ColourSlot(cfg), 4, "colour slot survives a save"
+    CheckEq cfg("groups")(4)("name") & cfg("groups")(5)("name"), "DE", "colour slot: group order survives a save"
+    Store_SetColourSlot cfg, 1
+    CheckEq Store_SlotGroupName(cfg, 2), "A", "colour slot 1: first group on button 2"
+    Set cfg = Store_ParseConfig("{" & grp & ",""settings"":{""contentColorSlot"":9}}", errMsg)
+    CheckEq Store_ColourSlot(cfg), 0, "invalid colour slot reset"
 End Sub
 
 Private Sub Test_StoreRoundTrip()

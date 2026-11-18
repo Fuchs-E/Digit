@@ -122,7 +122,7 @@ Public Sub BuildSettingsForm(ByVal codeFile As String)
 
     '=== Tab 2: Ribbon & shortcuts ===========================================
     Set fr = AddFrame(pg2, "fraButtons", 4, 4, 616, 200, "Quick buttons on the Home tab")
-    Hint fr, "lblButtonsHint", 8, 12, 600, 12, "The first five preset groups, in order. Change the order on the Presets tab."
+    Hint fr, "lblButtonsHint", 8, 12, 600, 12, "The quick buttons, left to right. Change the order of the groups on the Presets tab."
     Set c = AddLabel(fr, "lblHdrGroup", 8, 30, 220, 12, "#    Group"): c.Font.Bold = True
     Set c = AddLabel(fr, "lblHdrKey", 250, 30, 160, 12, "Keyboard shortcut"): c.Font.Bold = True
     For i = 1 To 5
@@ -174,7 +174,13 @@ Public Sub BuildSettingsForm(ByVal codeFile As String)
     c.ControlTipText = "For example Ctrl+Alt+6. Leave blank for no shortcut."
     Hint fr, "lblKeyColourHint", 8, 38, 600, 12, "Works when ""Enable keyboard shortcuts"" is ticked on the previous tab."
 
-    Hint pg3, "lblCcNote", 8, 252, 608, 24, "Text, blank cells and pivot tables are always left alone. Undo Format puts the previous colours back."
+    Set fr = AddFrame(pg3, "fraContentPos", 4, 250, 616, 62, "Position on the ribbon")
+    AddLabel fr, "lblCcSlot", 8, 15, 236, 12, "Show the Colour by content button"
+    Set c = AddCtl(fr, "Forms.ComboBox.1", "cboCcSlot", 250, 12, 250, 18)
+    c.Style = 2                                   ' fmStyleDropDownList: pick from the list only
+    Hint fr, "lblCcSlotHint", 8, 38, 600, 12, "In place of a quick button, the Digit group is one column narrower: four preset groups stay on quick buttons."
+
+    Hint pg3, "lblCcNote", 8, 320, 608, 24, "Text, blank cells and pivot tables are always left alone. Undo Format puts the previous colours back."
 
     '=== Footer (every tab) ===================================================
     Set c = Hint(d, "lblStatus", 8, 456, 460, 12, "")

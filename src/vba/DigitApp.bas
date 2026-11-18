@@ -6,7 +6,7 @@ Attribute VB_Name = "DigitApp"
 '==============================================================================
 Option Explicit
 
-Public Const DIGIT_VERSION As String = "1.5.0"
+Public Const DIGIT_VERSION As String = "1.5.1"
 Public Const DIGIT_TITLE As String = "Digit"
 
 Private mStarted As Boolean
@@ -77,6 +77,10 @@ End Sub
 Public Sub App_RunSlot(ByVal slot As Long)
     Dim nm As String
     Digit_Startup
+    If slot >= 1 And Store_ColourSlot(Store_Config()) = slot Then
+        App_RunColour               ' Colour by content sits at this position
+        Exit Sub
+    End If
     nm = Store_SlotGroupName(Store_Config(), slot)
     If Len(nm) = 0 Then
         If MsgBox("Quick button " & slot & " has no preset group yet." & vbCrLf & vbCrLf & _
@@ -177,7 +181,7 @@ Public Sub App_RegisterShortcuts()
 
     For i = 1 To DIGIT_SLOT_COUNT
         code = Core_ShortcutToOnKey(Store_Shortcut(cfg, i))
-        If Len(code) > 0 And Len(Store_SlotGroupName(cfg, i)) > 0 Then
+        If Len(code) > 0 And (Len(Store_SlotGroupName(cfg, i)) > 0 Or Store_ColourSlot(cfg) = i) Then
             On Error Resume Next
             Err.Clear
             Application.OnKey code, Qualified("DigitQuick" & i)

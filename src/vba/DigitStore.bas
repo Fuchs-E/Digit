@@ -17,6 +17,7 @@ Attribute VB_Name = "DigitStore"
 '   cfg("settings")("contentColors")  Dictionary: "input", "formula", "sheetLink",
 '                                  "externalLink" -> "#RRGGBB" or "" (Colour by content)
 '   cfg("settings")("contentColorShortcut")  String ("Ctrl+Alt+6" or "")
+'   cfg("settings")("contentColorSlot")  Long: 0 = own button, 1..5 = in place of that quick button
 '   cfg("slots")                   Collection of 5 Strings: the names of the first five
 '                                  groups (the quick buttons, left to right). Derived from
 '                                  the group order and kept in the file for older versions;
@@ -232,18 +233,20 @@ Public Function Store_GroupIndex(ByVal cfg As Scripting.Dictionary, ByVal groupN
     Next i
 End Function
 
-' The quick buttons are the first five groups, in list order.
+' The quick buttons are the first five groups, in list order (the first four,
+' around Colour by content, when that takes one of the positions).
 Public Function Store_SlotGroupName(ByVal cfg As Scripting.Dictionary, ByVal slot As Long) As String
-    If slot < 1 Or slot > DIGIT_SLOT_COUNT Then Exit Function
-    If slot > cfg("groups").Count Then Exit Function
-    Store_SlotGroupName = cfg("groups")(slot)("name")
+    Dim idx As Long
+    idx = Store_SlotGroupIndex(cfg, slot)
+    If idx < 1 Then Exit Function
+    Store_SlotGroupName = cfg("groups")(idx)("name")
 End Function
 
 ' True when the group is on one of the quick buttons.
 Public Function Store_IsInSlot(ByVal cfg As Scripting.Dictionary, ByVal groupName As String) As Boolean
     Dim idx As Long
     idx = Store_GroupIndex(cfg, groupName)
-    Store_IsInSlot = (idx >= 1 And idx <= DIGIT_SLOT_COUNT)
+    Store_IsInSlot = (idx >= 1 And idx <= Store_QuickGroupCount(cfg))
 End Function
 
 ' Rewrites cfg("slots") from the group order (before saving or copying).
@@ -281,6 +284,50 @@ End Function
 
 Public Function Store_UndoDepth(ByVal cfg As Scripting.Dictionary) As Long
     Store_UndoDepth = cfg("settings")("undoDepth")
+End Function
+
+'------------------------------------------------------------------------------
+' Where the Colour by content button sits
+'------------------------------------------------------------------------------
+
+' The quick-button position (1 to 5) that Colour by content takes, or 0 when it
+' has its own button after Undo Format.
+Public Function Store_ColourSlot(ByVal cfg As Scripting.Dictionary) As Long
+    If cfg("settings").Exists("contentColorSlot") Then Store_ColourSlot = cfg("settings")("contentColorSlot")
+End Function
+
+Public Sub Store_SetColourSlot(ByVal cfg As Scripting.Dictionary, ByVal slot As Long)
+    If slot < 0 Or slot > DIGIT_SLOT_COUNT Then slot = 0
+    cfg("settings")("contentColorSlot") = slot
+End Sub
+
+' How many preset groups are on quick buttons: five, or four when Colour by
+' content takes one of the positions.
+Public Function Store_QuickGroupCount(ByVal cfg As Scripting.Dictionary) As Long
+    Store_QuickGroupCount = DIGIT_SLOT_COUNT
+    If Store_ColourSlot(cfg) > 0 Then Store_QuickGroupCount = DIGIT_SLOT_COUNT - 1
+End Function
+
+' Number of the group (in list order) shown at a quick-button position, or 0
+' when the position is empty or is Colour by content's.
+Public Function Store_SlotGroupIndex(ByVal cfg As Scripting.Dictionary, ByVal slot As Long) As Long
+    Dim cs As Long, idx As Long
+    If slot < 1 Or slot > DIGIT_SLOT_COUNT Then Exit Function
+    cs = Store_ColourSlot(cfg)
+    If slot = cs Then Exit Function
+    idx = slot
+    If cs > 0 And slot > cs Then idx = slot - 1
+    If idx > cfg("groups").Count Then Exit Function
+    Store_SlotGroupIndex = idx
+End Function
+
+' The quick-button position of group number gi, or 0 when it is in the Digit menu.
+Public Function Store_GroupSlot(ByVal cfg As Scripting.Dictionary, ByVal gi As Long) As Long
+    Dim cs As Long
+    If gi < 1 Or gi > Store_QuickGroupCount(cfg) Then Exit Function
+    cs = Store_ColourSlot(cfg)
+    Store_GroupSlot = gi
+    If cs > 0 And gi >= cs Then Store_GroupSlot = gi + 1
 End Function
 
 '------------------------------------------------------------------------------
@@ -489,6 +536,7 @@ Public Function Store_DefaultConfig() As Scripting.Dictionary
     Next i
     Set settings("contentColors") = colours
     settings("contentColorShortcut") = DIGIT_CONTENT_SHORTCUT
+    settings("contentColorSlot") = 0
 
     cfg("version") = DIGIT_FILE_VERSION
     Set cfg("settings") = settings
@@ -645,6 +693,9 @@ Public Function Store_Normalize(ByVal src As Object) As Scripting.Dictionary
         Next i
     End If
     settings("contentColorShortcut") = sc
+    n = DictLong(srcSettings, "contentColorSlot", 0)
+    If n < 0 Or n > DIGIT_SLOT_COUNT Then n = 0
+    settings("contentColorSlot") = n
 
     cfg("version") = DIGIT_FILE_VERSION
     Set cfg("settings") = settings
