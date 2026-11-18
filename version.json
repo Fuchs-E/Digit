@@ -1,4 +1,4 @@
 {
-  "version": "1.5.0",
-  "notes": "New Colour by content button: one click colours each selected cell's font by what it holds (blue inputs, black formulas, green links to other sheets, dark red links to other files) and changes nothing else. Set the colours and shortcut on the new Colour by content tab in Settings."
+  "version": "1.5.1",
+  "notes": "Colour by content can now take the place of a quick button, which makes the Digit group one column narrower. Choose its position in Settings, on the Colour by content tab."
 }

@@ -17,3 +17,12 @@ w = (right - left) / 4
 for i, c in enumerate(COLOURS):
     d.rectangle([left + i * w, top, left + (i + 1) * w, bottom], fill=c)
 im.resize((32, 32), Image.LANCZOS).save('colourIcon.png')
+# The same picture as one of Digit's own icons ("digit:colour"), which is what
+# a quick-button position shows when Colour by content takes its place.
+import os
+ICONS = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'icons')
+small = Image.open('colourIcon.png')
+small.save(os.path.join(ICONS, 'colour.png'))
+flat = Image.new('RGB', (32, 32), 'white')
+flat.paste(small, (0, 0), small)
+flat.save(os.path.join(ICONS, 'form', 'colour.bmp'))
