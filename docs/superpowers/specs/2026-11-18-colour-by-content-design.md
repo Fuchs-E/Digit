@@ -87,6 +87,13 @@ Further rules:
 - **Text inside quotes** is ignored: `="See Inputs!A1"` is a plain formula.
 - **Formulas that return text**, e.g. `=A1&" units"`, are still formulas and are
   coloured. Only *typed* text is left alone.
+- **Unknown words in a formula** (`LET` / `LAMBDA` variables, undefined names,
+  names whose target is `#REF!`) contribute nothing to the classification. A
+  sheet-scoped name wins over a workbook name of the same spelling, as in Excel.
+- **Functions in another workbook or add-in**, e.g. `=PERSONAL.XLSB!MyFn(A1)`,
+  are external links.
+- **Values written by Excel rather than typed** (query or external-data output)
+  are constants and are coloured as inputs.
 
 ### Targeting
 
@@ -108,12 +115,22 @@ Further rules:
 Status bar after a run, for example:
 `Digit: Colour by content  12 input, 30 formula, 4 sheet link, 1 external`.
 
+The counts are cells classified into a category that has a colour set. Cells in
+a category whose colour is blank are not counted. A run that applies anything
+pushes an undo entry, even if every cell already had the right colour.
+
 ### Undo
 
 One undo entry labelled "Colour by content", restoring the previous font colour
 of every cell that was changed (including automatic and theme colours, which
 the existing snapshot already handles). If the snapshot would exceed the
 existing block limit, the existing "apply without undo?" question is asked.
+
+The snapshot must be truly font-only. Today `Undo_CaptureRange` always records
+and restores the number format as well, so `DigitUndo` gains a mode that leaves
+number formats out. Otherwise undoing a colour run could revert a number format
+the user changed in between, and models with varied formats would reach the
+block limit sooner than they need to.
 
 ## Settings and storage
 
@@ -135,12 +152,21 @@ files get the defaults on load, and older Digit versions ignore the keys):
   repaired to that category's default.
 - The shortcut follows the same rules and the same "Enable keyboard shortcuts"
   switch as the five quick-button shortcuts. Blank means none. It must not
-  duplicate a quick-button shortcut; Settings refuses to save a duplicate.
+  duplicate a quick-button shortcut; Settings refuses to save a duplicate. If a
+  file is loaded where a quick button already uses the same shortcut (for
+  example an older file that assigned Ctrl+Alt+6), the quick button keeps it
+  and this shortcut is blanked.
+- An older Digit version that saves Settings rewrites the file without these
+  keys, so a shared file touched by a teammate who has not updated yet falls
+  back to the default colours. The docs should say so.
 
 **Settings window**, *Ribbon & shortcuts* tab: a new "Colour by content"
-section with, for each of the four categories, a label, a colour swatch and a
-**Choose...** button (the existing colour picker), plus a **Reset to standard
-colours** button and the shortcut box.
+section with, for each of the four categories, a label, a colour swatch, a
+**Choose...** button (the existing colour picker) and a **Clear** button (sets
+the colour to blank, like the "none" buttons in the preset editor), plus a
+**Reset to standard colours** button and the shortcut box. Reset changes the
+four colours only, not the shortcut. Import with "replace all" takes the
+imported file's colours and shortcut, as it already does for other settings.
 
 ## Ribbon
 
@@ -172,7 +198,10 @@ Follows the existing layering in `docs/ARCHITECTURE.md`.
   registration, ribbon callbacks, and the Settings section.
 - **Docs and release.** README features table, `docs/PRESETS.md` (new keys and
   a "Colour by content" section), `docs/ARCHITECTURE.md` (new flow),
-  `presets/presets.sample.json`, and `version.json` to 1.5.0.
+  `presets/presets.sample.json`, and the release steps in `docs/RELEASING.md`
+  (`version.json`, `DIGIT_VERSION` in `DigitApp.bas`, release notes,
+  `tools/check_vba.py`) for 1.5.0. Also correct the stale "Limits" line in
+  `docs/PRESETS.md` that says theme colours are restored as RGB.
 
 ## Testing
 
@@ -199,8 +228,10 @@ In `DigitTests.bas`, run by `build.ps1 -RunTests`:
 
 - The parsing technique inside the classifier, so long as the unit tests above
   pass.
-- How cells are batched when applying colours, so long as large selections
-  stay responsive.
+- How cells are read and batched, so long as large selections stay
+  responsive. Expected shape: read formulas in bulk, classify each distinct
+  formula text once, and show progress in the status bar on long runs. The
+  integration tests include one sizeable case.
 - Exact layout of the new Settings section (the tab is currently full, so the
   form or existing frames may need resizing), and the ribbon button's picture.
 - Behaviour of spilled dynamic-array cells: they should take the colour of the
@@ -215,3 +246,9 @@ In `DigitTests.bas`, run by `build.ps1 -RunTests`:
 - A single cell in a table colours that cell only, not the column.
 - A blank colour means "skip this category".
 - Default shortcut Ctrl+Alt+6; default red is dark red `#C00000`.
+- A **Clear** button per colour in Settings, so "skip this category" does not
+  need hand-editing the file.
+- Undo for this feature never touches number formats.
+- On a shortcut clash at load, the quick button keeps the shortcut.
+- Functions in another workbook or add-in count as external links.
+- Query and external-data output counts as inputs.
