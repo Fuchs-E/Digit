@@ -59,16 +59,16 @@ Rules the scanner implements (text inside `"..."` is skipped):
 - `[...]` (nesting, `'` escapes the next character inside): followed by a word and `!` → external; otherwise a structured or R1C1 reference → counts as a reference.
 - word followed by `!`, or `word:word!` (3D): same qualifier rule as above without the bracket case.
 - word followed by `(` → function. `TRUE` / `FALSE` → literal. A word found in `names` (own-sheet key first, then global) → classify its target recursively, depth limit 5; an input / none result counts as formula. Any other word → formula.
-- `:` outside brackets → reference. `#...` error literal → formula. Numbers (with exponent) → nothing.
-- Result: external > sheet link > formula; nothing but numbers, operators and strings → input. Text not starting with `=` → `ckNone`.
+- `"..."` text literal → formula. `:` outside brackets → reference. `#...` error literal → formula. Numbers (with exponent) → nothing.
+- Result: external > sheet link > formula; nothing but numbers and operators → input (a text literal makes it a formula). Text not starting with `=` → `ckNone`.
 
 - [ ] Step 1: Write `Test_Classify` in `DigitTests.bas` and call it from `RunAllTests` after `Test_Collections`. Cases (own sheet `Model`; sheets `model`, `inputs`, `my sheet`, `jan`, `dec`; names `taxrate`→`=0.05`, `revenue`→`=Inputs!$C$7`, `local`→`=Model!$A$1`, `ext`→`='[Budget.xlsx]Sheet1'!$A$1`, `chain`→`=Revenue*2`, `model!scoped`→`=Inputs!$A$1`, `scoped`→`=Model!$A$1`, `table1`→`='Inputs'!A1`, `table2`→`='Model'!A1`, `loop`→`=Loop+1`):
 
 | Formula | Expected |
 |---|---|
 | `1250` | ckNone |
-| `=1000*12`, `=-(5+3)/2`, `=1E+3*2`, `="a"&"b"`, `=TRUE` | ckInput |
-| `=B5*C5`, `=SUM(D2:D10)`, `=TODAY()`, `=B5*1.05`, `=$A$1`, `=SUM(A:A)`, `=SUM(1:1)`, `=LOG10(100)`, `=Model!A1`, `="See Inputs!A1"`, `=A1&" units"`, `=#REF!+1`, `=TaxRate*B5`, `=Local`, `=Table2[Amount]`, `=[@Amount]*2`, `=Table2[[#This Row],[Amount]]`, `=LET(x,1,x*2)`, `=Undefined+1`, `=RC[-1]*R[-1]C`, `=A1#`, `=Loop` | ckFormula |
+| `=1000*12`, `=-(5+3)/2`, `=1E+3*2`, `=TRUE` | ckInput |
+| `=B5*C5`, `="a"&"b"`, `=SUM(D2:D10)`, `=TODAY()`, `=B5*1.05`, `=$A$1`, `=SUM(A:A)`, `=SUM(1:1)`, `=LOG10(100)`, `=Model!A1`, `="See Inputs!A1"`, `=A1&" units"`, `=#REF!+1`, `=TaxRate*B5`, `=Local`, `=Table2[Amount]`, `=[@Amount]*2`, `=Table2[[#This Row],[Amount]]`, `=LET(x,1,x*2)`, `=Undefined+1`, `=RC[-1]*R[-1]C`, `=A1#`, `=Loop` | ckFormula |
 | `=Assumptions!C7` with `sheets` Nothing, `=Inputs!C7`, `='My Sheet'!A1`, `=B5*Inputs!C2`, `=SUM(Jan:Dec!B5)`, `=SUM('Jan:Dec'!B5)`, `=Revenue`, `=Chain`, `=Scoped`, `=Table1[Amount]`, `=SUM(Table1[[#Totals],[Amount]])` | ckSheetLink |
 | `=[Budget.xlsx]Sheet1!A1`, `=[1]Sheet1!A1`, `='C:\path\[Budget.xlsx]Sheet1'!A1`, `=Budget.xlsx!Name`, `='C:\x\Budget.xlsx'!Name`, `=PERSONAL.XLSB!MyFn(A1)`, `=Inputs!A1+[Budget.xlsx]Sheet1!A1`, `=Ext` | ckExternal |
 

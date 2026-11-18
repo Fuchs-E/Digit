@@ -38,6 +38,7 @@ Public Function RunAllTests(Optional ByVal tempFolder As String = "") As String
     Test_XmlEscape
     Test_Versions
     Test_Collections
+    Test_Classify
     Test_Normalize
     Test_StoreRoundTrip
     Test_FormatUtilities
@@ -211,6 +212,57 @@ Private Sub Test_Collections()
     Coll_ReplaceAt c, 2, "x"
     CheckEq c(1) & c(2) & c(3), "cxa", "replace"
     CheckEq c.Count, 3, "count kept"
+End Sub
+
+' Colour by content: the formula classifier. The cell is on sheet "Model".
+Private Sub Test_Classify()
+    Dim names As New Scripting.Dictionary, sheets As New Scripting.Dictionary, v As Variant
+
+    For Each v In Array("model", "inputs", "my sheet", "jan", "dec")
+        sheets(CStr(v)) = True
+    Next v
+    names("taxrate") = "=0.05"
+    names("revenue") = "=Inputs!$C$7"
+    names("local") = "=Model!$A$1"
+    names("ext") = "='[Budget.xlsx]Sheet1'!$A$1"
+    names("chain") = "=Revenue*2"
+    names("model!scoped") = "=Inputs!$A$1"
+    names("scoped") = "=Model!$A$1"
+    names("table1") = "='Inputs'!A1"
+    names("table2") = "='Model'!A1"
+    names("loop") = "=Loop+1"
+
+    CheckEq Core_ClassifyFormula("1250", "Model", names, sheets), ckNone, "classify: not a formula"
+
+    For Each v In Array("=1000*12", "=-(5+3)/2", "=1E+3*2", "=TRUE", "=.5*2", "={1,2;3,4}")
+        CheckEq Core_ClassifyFormula(CStr(v), "Model", names, sheets), ckInput, "classify input: " & v
+    Next v
+
+    For Each v In Array("=B5*C5", "=SUM(D2:D10)", "=TODAY()", "=B5*1.05", "=$A$1", "=SUM(A:A)", "=SUM(1:1)", _
+                        "=LOG10(100)", "=Model!A1", "=""See Inputs!A1""", "=""a""&""b""", "=A1&"" units""", _
+                        "=#REF!+1", "=#N/A", "=#DIV/0!", "=TaxRate*B5", "=Local", "=Table2[Amount]", _
+                        "=[@Amount]*2", "=Table2[[#This Row],[Amount]]", "=Table2[[#This Row],[It's '[x']]]]", _
+                        "=LET(x,1,x*2)", "=Undefined+1", "=RC[-1]*R[-1]C", "=A1#", "=Loop", "=Model!1:1+TaxRate")
+        CheckEq Core_ClassifyFormula(CStr(v), "Model", names, sheets), ckFormula, "classify formula: " & v
+    Next v
+
+    For Each v In Array("=Inputs!C7", "='My Sheet'!A1", "=B5*Inputs!C2", "=SUM(Jan:Dec!B5)", "=SUM('Jan:Dec'!B5)", _
+                        "=Revenue", "=Chain", "=Scoped", "=Table1[Amount]", "=SUM(Table1[[#Totals],[Amount]])", _
+                        "=Inputs!RC[-1]", "=Model!1:1+Revenue", "=#REF!A1+Inputs!A1")
+        CheckEq Core_ClassifyFormula(CStr(v), "Model", names, sheets), ckSheetLink, "classify sheet link: " & v
+    Next v
+
+    For Each v In Array("=[Budget.xlsx]Sheet1!A1", "=[1]Sheet1!A1", "='C:\path\[Budget.xlsx]Sheet1'!A1", _
+                        "=Budget.xlsx!Name", "='C:\x\Budget.xlsx'!Name", "=PERSONAL.XLSB!MyFn(A1)", _
+                        "=Inputs!A1+[Budget.xlsx]Sheet1!A1", "=Ext", "=[Budget.xlsx]Jan:Dec!A1", _
+                        "='\\srv\share\Budget.xlsx'!Name")
+        CheckEq Core_ClassifyFormula(CStr(v), "Model", names, sheets), ckExternal, "classify external: " & v
+    Next v
+
+    ' Without the sheet list or names, any unbracketed qualifier is a sheet.
+    CheckEq Core_ClassifyFormula("=Assumptions!C7", "Model", Nothing, Nothing), ckSheetLink, "classify: no sheet list"
+    CheckEq Core_ClassifyFormula("=Model!C7", "model", Nothing, Nothing), ckFormula, "classify: own sheet, any case"
+    CheckEq Core_ClassifyFormula("=Scoped", "Inputs", names, sheets), ckSheetLink, "classify: global name from another sheet"
 End Sub
 
 Private Sub Test_Normalize()
